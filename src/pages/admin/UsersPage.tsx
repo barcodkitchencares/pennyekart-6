@@ -15,6 +15,7 @@ interface Profile {
   email: string | null;
   role_id: string | null;
   is_super_admin: boolean;
+  is_approved: boolean;
 }
 
 interface Role {
@@ -51,6 +52,12 @@ const UsersPage = () => {
     else { toast({ title: "Super admin toggled" }); fetchData(); }
   };
 
+  const toggleApproval = async (userId: string, current: boolean) => {
+    const { error } = await supabase.from("profiles").update({ is_approved: !current }).eq("user_id", userId);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else { toast({ title: !current ? "User approved" : "User unapproved" }); fetchData(); }
+  };
+
   return (
     <AdminLayout>
       <h1 className="mb-6 text-2xl font-bold">Users Management</h1>
@@ -60,6 +67,7 @@ const UsersPage = () => {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Email</TableHead>
+              <TableHead>Approved</TableHead>
               <TableHead>Role</TableHead>
               {isSuperAdmin && <TableHead>Super Admin</TableHead>}
             </TableRow>
@@ -69,6 +77,9 @@ const UsersPage = () => {
               <TableRow key={u.id}>
                 <TableCell>{u.full_name ?? "—"}</TableCell>
                 <TableCell>{u.email}</TableCell>
+                <TableCell>
+                  <Switch checked={u.is_approved} onCheckedChange={() => toggleApproval(u.user_id, u.is_approved)} />
+                </TableCell>
                 <TableCell>
                   {isSuperAdmin ? (
                     <Select value={u.role_id ?? "none"} onValueChange={(v) => updateRole(u.user_id, v)}>

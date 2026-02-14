@@ -22,11 +22,22 @@ const Auth = () => {
     setLoading(true);
 
     if (isLogin) {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast({ title: "Login failed", description: error.message, variant: "destructive" });
       } else {
-        navigate("/");
+        // Check if user is approved
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_approved")
+          .eq("user_id", data.user.id)
+          .single();
+        if (profile && !profile.is_approved) {
+          await supabase.auth.signOut();
+          toast({ title: "Account pending", description: "Your account is awaiting admin approval.", variant: "destructive" });
+        } else {
+          navigate("/");
+        }
       }
     } else {
       const { error } = await supabase.auth.signUp({
