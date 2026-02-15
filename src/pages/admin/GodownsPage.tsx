@@ -382,9 +382,18 @@ const GodownsPage = () => {
     return [];
   };
 
-  // Get available stock products for a godown (for transfer)
-  const getStockProducts = (godownId: string) => {
-    return godownStock.filter(s => s.godown_id === godownId && s.quantity > 0);
+  // Get available stock products for a godown (for transfer) - grouped by product
+  const getGroupedStockProducts = (godownId: string) => {
+    const stock = godownStock.filter(s => s.godown_id === godownId);
+    const grouped: Record<string, { product_id: string; product_name: string; total_qty: number }> = {};
+    stock.forEach(s => {
+      const pid = s.product_id;
+      if (!grouped[pid]) {
+        grouped[pid] = { product_id: pid, product_name: s.products?.name ?? "Unknown", total_qty: 0 };
+      }
+      grouped[pid].total_qty += s.quantity;
+    });
+    return Object.values(grouped).sort((a, b) => a.product_name.localeCompare(b.product_name));
   };
 
   const renderAssignments = (g: Godown) => {
@@ -940,9 +949,12 @@ const GodownsPage = () => {
                 <Select value={transferForm.product_id} onValueChange={v => setTransferForm({ ...transferForm, product_id: v })}>
                   <SelectTrigger><SelectValue placeholder="Select product" /></SelectTrigger>
                   <SelectContent>
-                    {transferGodown && getStockProducts(transferGodown.id).map(s => (
-                      <SelectItem key={s.id} value={s.product_id}>
-                        {s.products?.name ?? "Unknown"} (Available: {s.quantity})
+                    {transferGodown && getGroupedStockProducts(transferGodown.id).map(s => (
+                      <SelectItem key={s.product_id} value={s.product_id}>
+                        <span className={s.total_qty < 0 ? "text-destructive font-semibold" : ""}>
+                          {s.product_name} (Available: {s.total_qty})
+                          {s.total_qty < 0 && " ⚠️"}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
