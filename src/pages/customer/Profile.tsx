@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -39,7 +40,7 @@ const statusLabels: Record<string, string> = {
 
 const Profile = () => {
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, loading: authLoading, signOut } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -49,12 +50,12 @@ const Profile = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!authLoading && !user) {
       navigate("/customer/login");
       return;
     }
-    fetchOrders();
-  }, [user]);
+    if (user) fetchOrders();
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (profile) {
@@ -171,6 +172,11 @@ const Profile = () => {
     );
   };
 
+  if (authLoading) return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <Skeleton className="h-10 w-40" />
+    </div>
+  );
   if (!user) return null;
 
   return (
