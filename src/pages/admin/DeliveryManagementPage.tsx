@@ -6,8 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Truck, Phone, Mail, MapPin } from "lucide-react";
+import { Search, Truck, Phone, Mail, MapPin, Settings2, X } from "lucide-react";
 
 interface DeliveryStaff {
   id: string;
@@ -21,34 +24,61 @@ interface DeliveryStaff {
   ward_number: number | null;
   local_body_name?: string | null;
   district_name?: string | null;
+  assigned_wards?: { local_body_id: string; local_body_name: string; ward_number: number }[];
+}
+
+interface LocalBody {
+  id: string;
+  name: string;
+  ward_count: number;
+  district_id: string;
 }
 
 const DeliveryManagementPage = () => {
   const [staff, setStaff] = useState<DeliveryStaff[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [localBodies, setLocalBodies] = useState<LocalBody[]>([]);
+  const [wardDialogOpen, setWardDialogOpen] = useState(false);
+  const [selectedStaff, setSelectedStaff] = useState<DeliveryStaff | null>(null);
+  const [selectedLB, setSelectedLB] = useState("");
+  const [selectedWards, setSelectedWards] = useState<number[]>([]);
+  const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
   const fetchStaff = async () => {
     setLoading(true);
-    const [profilesRes, localBodiesRes, districtsRes] = await Promise.all([
+    const [profilesRes, localBodiesRes, districtsRes, assignmentsRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_type", "delivery_staff"),
-      supabase.from("locations_local_bodies").select("id, name, district_id"),
+      supabase.from("locations_local_bodies").select("id, name, district_id, ward_count"),
       supabase.from("locations_districts").select("id, name"),
+      supabase.from("delivery_staff_ward_assignments").select("*"),
     ]);
 
-    const localBodies = localBodiesRes.data ?? [];
+    const lbs = localBodiesRes.data ?? [];
     const districts = districtsRes.data ?? [];
+    const assignments = assignmentsRes.data ?? [];
+    setLocalBodies(lbs as LocalBody[]);
 
     const enriched = ((profilesRes.data ?? []) as unknown as DeliveryStaff[]).map((s) => {
+      const staffAssignments = assignments
+        .filter((a: any) => a.staff_user_id === s.user_id)
+        .map((a: any) => {
+          const lb = lbs.find((l) => l.id === a.local_body_id);
+          return { local_body_id: a.local_body_id, local_body_name: lb?.name ?? "", ward_number: a.ward_number };
+        });
+
+      let local_body_name: string | null = null;
+      let district_name: string | null = null;
       if (s.local_body_id) {
-        const lb = localBodies.find((l) => l.id === s.local_body_id);
+        const lb = lbs.find((l) => l.id === s.local_body_id);
         if (lb) {
+          local_body_name = lb.name;
           const dist = districts.find((d) => d.id === lb.district_id);
-          return { ...s, local_body_name: lb.name, district_name: dist?.name ?? null };
+          district_name = dist?.name ?? null;
         }
       }
-      return s;
+      return { ...s, local_body_name, district_name, assigned_wards: staffAssignments };
     });
 
     setStaff(enriched);
@@ -67,6 +97,63 @@ const DeliveryManagementPage = () => {
     }
   };
 
+  const openWardDialog = (s: DeliveryStaff) => {
+    setSelectedStaff(s);
+    setSelectedLB(s.local_body_id ?? "");
+    setSelectedWards(
+      (s.assigned_wards ?? [])
+        .filter((w) => w.local_body_id === (s.local_body_id ?? ""))
+        .map((w) => w.ward_number)
+    );
+    setWardDialogOpen(true);
+  };
+
+  const handleLBChange = (lbId: string) => {
+    setSelectedLB(lbId);
+    const existing = (selectedStaff?.assigned_wards ?? [])
+      .filter((w) => w.local_body_id === lbId)
+      .map((w) => w.ward_number);
+    setSelectedWards(existing);
+  };
+
+  const toggleWard = (ward: number) => {
+    setSelectedWards((prev) =>
+      prev.includes(ward) ? prev.filter((w) => w !== ward) : [...prev, ward]
+    );
+  };
+
+  const saveWardAssignments = async () => {
+    if (!selectedStaff || !selectedLB) return;
+    setSaving(true);
+
+    // Delete existing assignments for this staff + local body
+    await supabase
+      .from("delivery_staff_ward_assignments")
+      .delete()
+      .eq("staff_user_id", selectedStaff.user_id)
+      .eq("local_body_id", selectedLB);
+
+    // Insert new assignments
+    if (selectedWards.length > 0) {
+      const rows = selectedWards.map((w) => ({
+        staff_user_id: selectedStaff.user_id,
+        local_body_id: selectedLB,
+        ward_number: w,
+      }));
+      const { error } = await supabase.from("delivery_staff_ward_assignments").insert(rows);
+      if (error) {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+        setSaving(false);
+        return;
+      }
+    }
+
+    toast({ title: "Ward assignments saved" });
+    setSaving(false);
+    setWardDialogOpen(false);
+    fetchStaff();
+  };
+
   const filtered = staff.filter((s) => {
     if (!search) return true;
     const q = search.toLowerCase();
@@ -79,6 +166,7 @@ const DeliveryManagementPage = () => {
 
   const approvedCount = staff.filter((s) => s.is_approved).length;
   const pendingCount = staff.filter((s) => !s.is_approved).length;
+  const selectedLBData = localBodies.find((l) => l.id === selectedLB);
 
   return (
     <AdminLayout>
@@ -89,31 +177,18 @@ const DeliveryManagementPage = () => {
               <Truck className="h-6 w-6 text-primary" />
               Delivery Staff Management
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Manage and approve delivery staff members
-            </p>
+            <p className="text-sm text-muted-foreground mt-1">Manage, approve and assign wards to delivery staff</p>
           </div>
           <div className="flex gap-3">
-            <Badge variant="default" className="text-sm px-3 py-1">
-              {approvedCount} Approved
-            </Badge>
-            <Badge variant="secondary" className="text-sm px-3 py-1">
-              {pendingCount} Pending
-            </Badge>
-            <Badge variant="outline" className="text-sm px-3 py-1">
-              {staff.length} Total
-            </Badge>
+            <Badge variant="default" className="text-sm px-3 py-1">{approvedCount} Approved</Badge>
+            <Badge variant="secondary" className="text-sm px-3 py-1">{pendingCount} Pending</Badge>
+            <Badge variant="outline" className="text-sm px-3 py-1">{staff.length} Total</Badge>
           </div>
         </div>
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+          <Input placeholder="Search by name, email, or phone..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
 
         <div className="rounded-lg border bg-card overflow-x-auto">
@@ -123,42 +198,25 @@ const DeliveryManagementPage = () => {
                 <TableHead>Name</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Location</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead>Assigned Wards</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Approved</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    Loading...
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                    No delivery staff found
-                  </TableCell>
-                </TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No delivery staff found</TableCell></TableRow>
               ) : (
                 filtered.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{s.full_name ?? "—"}</TableCell>
                     <TableCell>
                       <div className="space-y-1">
-                        {s.email && (
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-                            {s.email}
-                          </div>
-                        )}
-                        {s.mobile_number && (
-                          <div className="flex items-center gap-1.5 text-sm">
-                            <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                            {s.mobile_number}
-                          </div>
-                        )}
+                        {s.email && <div className="flex items-center gap-1.5 text-sm"><Mail className="h-3.5 w-3.5 text-muted-foreground" />{s.email}</div>}
+                        {s.mobile_number && <div className="flex items-center gap-1.5 text-sm"><Phone className="h-3.5 w-3.5 text-muted-foreground" />{s.mobile_number}</div>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -168,13 +226,20 @@ const DeliveryManagementPage = () => {
                           <span>
                             {s.local_body_name && <span>{s.local_body_name}</span>}
                             {s.district_name && <span className="text-muted-foreground">, {s.district_name}</span>}
-                            {s.ward_number && <span className="text-muted-foreground"> (W{s.ward_number})</span>}
                           </span>
                         </div>
                       ) : "—"}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {new Date(s.created_at).toLocaleDateString()}
+                    <TableCell>
+                      {(s.assigned_wards ?? []).length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {s.assigned_wards!.map((w, i) => (
+                            <Badge key={i} variant="outline" className="text-xs">
+                              {w.local_body_name} W{w.ward_number}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : <span className="text-sm text-muted-foreground">None</span>}
                     </TableCell>
                     <TableCell>
                       <Badge variant={s.is_approved ? "default" : "secondary"}>
@@ -182,10 +247,12 @@ const DeliveryManagementPage = () => {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Switch
-                        checked={s.is_approved}
-                        onCheckedChange={() => toggleApproval(s.user_id, s.is_approved)}
-                      />
+                      <Switch checked={s.is_approved} onCheckedChange={() => toggleApproval(s.user_id, s.is_approved)} />
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => openWardDialog(s)}>
+                        <Settings2 className="h-4 w-4 mr-1" /> Assign Wards
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -194,6 +261,46 @@ const DeliveryManagementPage = () => {
           </Table>
         </div>
       </div>
+
+      <Dialog open={wardDialogOpen} onOpenChange={setWardDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assign Wards — {selectedStaff?.full_name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Panchayath / Local Body</label>
+              <Select value={selectedLB} onValueChange={handleLBChange}>
+                <SelectTrigger><SelectValue placeholder="Select panchayath" /></SelectTrigger>
+                <SelectContent>
+                  {localBodies.map((lb) => (
+                    <SelectItem key={lb.id} value={lb.id}>{lb.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedLBData && (
+              <div>
+                <label className="text-sm font-medium mb-2 block">Select Wards (1–{selectedLBData.ward_count})</label>
+                <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto">
+                  {Array.from({ length: selectedLBData.ward_count }, (_, i) => i + 1).map((w) => (
+                    <label key={w} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                      <Checkbox checked={selectedWards.includes(w)} onCheckedChange={() => toggleWard(w)} />
+                      W{w}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setWardDialogOpen(false)}>Cancel</Button>
+              <Button onClick={saveWardAssignments} disabled={saving}>
+                {saving ? "Saving..." : "Save Assignments"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AdminLayout>
   );
 };
