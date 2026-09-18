@@ -2507,6 +2507,21 @@ export type Database = {
       }
       create_community: { Args: { _name: string }; Returns: string }
       delete_my_community: { Args: never; Returns: boolean }
+      get_community_member_revenue: {
+        Args: { _community_id: string; _from?: string; _to?: string }
+        Returns: {
+          cost: number
+          full_name: string
+          is_creator: boolean
+          joined_at: string
+          mobile_number: string
+          order_count: number
+          profit: number
+          revenue: number
+          unmatched_items: number
+          user_id: string
+        }[]
+      }
       get_community_members: {
         Args: never
         Returns: {
@@ -2525,6 +2540,22 @@ export type Database = {
           created_at: string
           invite_id: string
           invited_mobile: string
+        }[]
+      }
+      get_community_revenue_summary: {
+        Args: { _from?: string; _to?: string }
+        Returns: {
+          community_id: string
+          community_name: string
+          cost: number
+          creator_mobile: string
+          creator_name: string
+          creator_user_id: string
+          member_count: number
+          order_count: number
+          profit: number
+          revenue: number
+          unmatched_items: number
         }[]
       }
       get_my_community: {
