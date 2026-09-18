@@ -345,6 +345,24 @@ const CommunityCard = ({ userId }: Props) => {
                     </div>
                   )}
 
+                  {(() => {
+                    const atRisk = members.filter((m) => !m.is_creator && m.days_until_removal !== null && m.days_until_removal <= 7);
+                    if (atRisk.length === 0) return null;
+                    return (
+                      <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                        <AlarmClock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <p className="font-semibold text-amber-700">
+                            {atRisk.length} member{atRisk.length === 1 ? "" : "s"} close to auto-removal
+                          </p>
+                          <p className="text-muted-foreground">
+                            {atRisk.map((m) => `${m.full_name || "Member"} (${m.days_until_removal} day${m.days_until_removal === 1 ? "" : "s"} left)`).join(", ")} — removed after 30 days without an order.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Members ({members.length})</p>
                     {members.map((m) => (
