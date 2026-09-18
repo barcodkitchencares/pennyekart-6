@@ -375,6 +375,13 @@ const CommunityCard = ({ userId }: Props) => {
                           <p className="text-xs text-muted-foreground truncate">
                             {m.mobile_number || "—"} · joined {new Date(m.joined_at).toLocaleDateString()}
                           </p>
+                          {!m.is_creator && m.days_until_removal !== null && (
+                            <p className={`text-xs mt-0.5 ${m.days_until_removal <= 7 ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                              {m.days_until_removal === 0
+                                ? "Will be removed today (no order in 30 days)"
+                                : `${m.days_until_removal} day${m.days_until_removal === 1 ? "" : "s"} left before auto-removal`}
+                            </p>
+                          )}
                         </div>
                         {!m.is_creator && (
                           <Button size="icon" variant="ghost" disabled={busy} onClick={() => handleRemove(m.user_id)}>
