@@ -37,7 +37,7 @@ const navItems = [
   { label: "Chatbot Settings", icon: Bot, path: "/admin/chatbot", perm: "read_settings" },
   { label: "Notifications", icon: Bell, path: "/admin/notifications", perm: "read_settings" },
   { label: "Scratch & Win", icon: Gift, path: "/admin/scratch-rewards", perm: "read_settings" },
-  { label: "Communities", icon: Users, path: "/admin/communities", perm: "read_orders" },
+  { label: "Communities", icon: Users, path: "/admin/communities", perm: "read_users" },
 ];
 
 const NavItems = ({ items, currentPath, onNavigate }: { items: typeof navItems; currentPath: string; onNavigate?: () => void }) => (
