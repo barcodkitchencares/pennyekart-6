@@ -202,9 +202,13 @@ const CommunityCard = ({ userId }: Props) => {
     );
   }
 
+  const atRiskCount = community?.is_creator
+    ? members.filter((m) => !m.is_creator && m.days_until_removal !== null && m.days_until_removal <= 7).length
+    : 0;
+
   const headerSubtitle = community
     ? community.is_creator
-      ? `${community.name} · ${community.member_count} member${community.member_count === 1 ? "" : "s"}`
+      ? `${community.name} · ${community.member_count} member${community.member_count === 1 ? "" : "s"}${atRiskCount > 0 ? ` · ${atRiskCount} close to removal` : ""}`
       : `${community.name} · Member`
     : isVerified
       ? incoming.length > 0
