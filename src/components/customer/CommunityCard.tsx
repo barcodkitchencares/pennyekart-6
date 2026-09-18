@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Users, UserPlus, Lock, Crown, Trash2, LogOut, Check, X, Loader2, ChevronDown } from "lucide-react";
+import { Users, UserPlus, Lock, Crown, Trash2, LogOut, Check, X, Loader2, ChevronDown, AlarmClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ interface MemberRow {
   mobile_number: string | null;
   joined_at: string;
   is_creator: boolean;
+  last_order_at: string | null;
+  days_until_removal: number | null;
 }
 
 interface InviteRow {
@@ -200,9 +202,13 @@ const CommunityCard = ({ userId }: Props) => {
     );
   }
 
+  const atRiskCount = community?.is_creator
+    ? members.filter((m) => !m.is_creator && m.days_until_removal !== null && m.days_until_removal <= 7).length
+    : 0;
+
   const headerSubtitle = community
     ? community.is_creator
-      ? `${community.name} · ${community.member_count} member${community.member_count === 1 ? "" : "s"}`
+      ? `${community.name} · ${community.member_count} member${community.member_count === 1 ? "" : "s"}${atRiskCount > 0 ? ` · ${atRiskCount} close to removal` : ""}`
       : `${community.name} · Member`
     : isVerified
       ? incoming.length > 0
@@ -343,6 +349,24 @@ const CommunityCard = ({ userId }: Props) => {
                     </div>
                   )}
 
+                  {(() => {
+                    const atRisk = members.filter((m) => !m.is_creator && m.days_until_removal !== null && m.days_until_removal <= 7);
+                    if (atRisk.length === 0) return null;
+                    return (
+                      <div className="flex gap-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                        <AlarmClock className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div className="text-xs">
+                          <p className="font-semibold text-amber-700">
+                            {atRisk.length} member{atRisk.length === 1 ? "" : "s"} close to auto-removal
+                          </p>
+                          <p className="text-muted-foreground">
+                            {atRisk.map((m) => `${m.full_name || "Member"} (${m.days_until_removal} day${m.days_until_removal === 1 ? "" : "s"} left)`).join(", ")} — removed after 30 days without an order.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Members ({members.length})</p>
                     {members.map((m) => (
@@ -355,6 +379,13 @@ const CommunityCard = ({ userId }: Props) => {
                           <p className="text-xs text-muted-foreground truncate">
                             {m.mobile_number || "—"} · joined {new Date(m.joined_at).toLocaleDateString()}
                           </p>
+                          {!m.is_creator && m.days_until_removal !== null && (
+                            <p className={`text-xs mt-0.5 ${m.days_until_removal <= 7 ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                              {m.days_until_removal === 0
+                                ? "Will be removed today (no order in 30 days)"
+                                : `${m.days_until_removal} day${m.days_until_removal === 1 ? "" : "s"} left before auto-removal`}
+                            </p>
+                          )}
                         </div>
                         {!m.is_creator && (
                           <Button size="icon" variant="ghost" disabled={busy} onClick={() => handleRemove(m.user_id)}>

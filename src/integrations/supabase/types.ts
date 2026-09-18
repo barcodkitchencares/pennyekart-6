@@ -2510,9 +2510,11 @@ export type Database = {
       get_community_members: {
         Args: never
         Returns: {
+          days_until_removal: number
           full_name: string
           is_creator: boolean
           joined_at: string
+          last_order_at: string
           mobile_number: string
           user_id: string
         }[]
