@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Users, UserPlus, Lock, Crown, Trash2, LogOut, Check, X, Loader2, ChevronDown } from "lucide-react";
+import { Users, UserPlus, Lock, Crown, Trash2, LogOut, Check, X, Loader2, ChevronDown, AlarmClock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ interface MemberRow {
   mobile_number: string | null;
   joined_at: string;
   is_creator: boolean;
+  last_order_at: string | null;
+  days_until_removal: number | null;
 }
 
 interface InviteRow {
