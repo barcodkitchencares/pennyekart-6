@@ -178,6 +178,7 @@ const App = () => {
                 <AppRoutes />
                 <ChatBot />
                 <NotificationPopup />
+                <PullToRefresh />
               </CartProvider>
             </AuthProvider>
           </BrowserRouter>
