@@ -70,6 +70,7 @@ import CustomerWallet from "./pages/customer/Wallet";
 import PlayVideos from "./pages/customer/PlayVideos";
 import CategoryProducts from "./pages/customer/CategoryProducts";
 import ChatBot from "./components/ChatBot";
+import PullToRefresh from "./components/PullToRefresh";
 
 const queryClient = new QueryClient();
 
@@ -177,6 +178,7 @@ const App = () => {
                 <AppRoutes />
                 <ChatBot />
                 <NotificationPopup />
+                <PullToRefresh />
               </CartProvider>
             </AuthProvider>
           </BrowserRouter>
