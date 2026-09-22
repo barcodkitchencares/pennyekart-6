@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">pennyekart</string>
+    <string name="title_activity_main">pennyekart</string>
+    <string name="package_name">app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55</string>
+    <string name="custom_url_scheme">app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55</string>
+</resources>
