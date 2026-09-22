@@ -12,6 +12,7 @@ Already set up in this project:
 - Pull-to-refresh (swipe down at the top of any page reloads — native app only)
 - Android hardware back-button handling
 - Native bootstrap in `src/lib/native.ts` (safe no-op in the browser)
+- Penny launcher icon generated for every Android screen density
 
 ---
 
@@ -34,12 +35,11 @@ npx cap sync
 ## 3. App icon & splash screen
 
 ```bash
-npm install -D @capacitor/assets
-npx @capacitor/assets generate --iconBackgroundColor '#1a120b' --splashBackgroundColor '#1a120b'
+npx capacitor-assets generate --android --assetPath assets
 ```
 
-Place a square `assets/logo.png` (1024×1024) in the project root first — the
-existing `src/assets/logo.png` works as the source.
+The square Penny icon source is already included at `assets/icon-only.png`.
+Run the command again whenever that source image changes, then run `npx cap sync`.
 
 ## 4. Permissions
 
