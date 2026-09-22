@@ -342,6 +342,77 @@ export type Database = {
           },
         ]
       }
+      customer_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          city: string | null
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          landmark: string | null
+          latitude: number | null
+          local_body_id: string | null
+          longitude: number | null
+          pincode: string | null
+          state: string | null
+          updated_at: string
+          user_id: string
+          ward_number: number | null
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          city?: string | null
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          landmark?: string | null
+          latitude?: number | null
+          local_body_id?: string | null
+          longitude?: number | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id: string
+          ward_number?: number | null
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          city?: string | null
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          landmark?: string | null
+          latitude?: number | null
+          local_body_id?: string | null
+          longitude?: number | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          user_id?: string
+          ward_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_addresses_local_body_id_fkey"
+            columns: ["local_body_id"]
+            isOneToOne: false
+            referencedRelation: "locations_local_bodies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_search_history: {
         Row: {
           created_at: string
