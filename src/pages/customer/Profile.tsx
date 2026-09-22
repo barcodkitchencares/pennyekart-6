@@ -483,14 +483,11 @@ const Profile = () => {
 
         {/* Addresses Section */}
         {activeSection === "addresses" && (
-          <Card>
-            <CardContent className="p-8 text-center text-muted-foreground">
-              <MapPin className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              <p className="font-medium">Saved Addresses</p>
-              <p className="text-sm mt-1">No saved addresses yet</p>
-              <Button size="sm" className="mt-4">Add Address</Button>
-            </CardContent>
-          </Card>
+          <AddressBook
+            userId={user?.id}
+            defaultName={profile?.full_name}
+            defaultPhone={profile?.mobile_number}
+          />
         )}
 
         {/* Wishlist Section */}
