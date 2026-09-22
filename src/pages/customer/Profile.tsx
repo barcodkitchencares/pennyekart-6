@@ -20,6 +20,7 @@ import NotificationDetailDialog from "@/components/NotificationDetailDialog";
 import ScratchCardWidget from "@/components/ScratchCardWidget";
 import VerifyAccountCard from "@/components/customer/VerifyAccountCard";
 import CommunityCard from "@/components/customer/CommunityCard";
+import AddressBook from "@/components/customer/AddressBook";
 import { BadgeCheck } from "lucide-react";
 
 interface Order {
