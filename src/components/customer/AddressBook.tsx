@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { MapPin, Plus, Pencil, Trash2, Star, Loader2, LocateFixed, Home, Briefcase } from "lucide-react";
+import { MapPin, Plus, Pencil, Trash2, Star, Loader2, Home, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import AddressFormFields, { emptyAddressForm, validateAddressForm } from "./AddressFormFields";
 
 interface Address {
   id: string;
