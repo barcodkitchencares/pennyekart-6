@@ -91,6 +91,7 @@ export interface UtilityService {
   is_approved: boolean;
   sort_order: number;
   created_at: string;
+  requires_location?: boolean;
 }
 
 export interface UtilityRequest {
@@ -111,6 +112,9 @@ export interface UtilityRequest {
   quantity?: number | null;
   unit_price?: number | null;
   total_amount?: number | null;
+  address_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface UtilityVariant {

@@ -12,6 +12,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart } from "lucide-react";
 import { formatServicePrice, type UtilityCategory, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
+import AddressFormFields, {
+  emptyAddressForm,
+  formatAddressText,
+  validateAddressForm,
+  type AddressFormValues,
+} from "@/components/customer/AddressFormFields";
+
+interface SavedAddress {
+  id: string;
+  label: string;
+  contact_name: string;
+  contact_phone: string;
+  address_line1: string;
+  address_line2: string | null;
+  landmark: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_default: boolean;
+}
 
 interface ProviderInfo {
   provider_user_id: string;
@@ -36,6 +58,10 @@ const UtilityServices = () => {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<UtilityService | null>(null);
   const [form, setForm] = useState({ contact_name: "", contact_phone: "", address: "" });
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addrMode, setAddrMode] = useState<"saved" | "new">("saved");
+  const [addrForm, setAddrForm] = useState<AddressFormValues>(emptyAddressForm);
   const [submitting, setSubmitting] = useState(false);
   const [variants, setVariants] = useState<UtilityVariant[]>([]);
   const [variantId, setVariantId] = useState<string | null>(null);

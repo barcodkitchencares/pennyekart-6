@@ -2360,12 +2360,15 @@ export type Database = {
       utility_service_requests: {
         Row: {
           address: string | null
+          address_id: string | null
           admin_notes: string | null
           contact_name: string
           contact_phone: string
           created_at: string
           customer_user_id: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           notes: string | null
           preferred_date: string | null
           quantity: number
@@ -2380,12 +2383,15 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          address_id?: string | null
           admin_notes?: string | null
           contact_name: string
           contact_phone: string
           created_at?: string
           customer_user_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           preferred_date?: string | null
           quantity?: number
@@ -2400,12 +2406,15 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          address_id?: string | null
           admin_notes?: string | null
           contact_name?: string
           contact_phone?: string
           created_at?: string
           customer_user_id?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           notes?: string | null
           preferred_date?: string | null
           quantity?: number
@@ -2419,6 +2428,13 @@ export type Database = {
           variant_label?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "utility_service_requests_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "customer_addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "utility_service_requests_service_id_fkey"
             columns: ["service_id"]
@@ -2505,6 +2521,7 @@ export type Database = {
           price: number
           price_unit: string
           provider_user_id: string | null
+          requires_location: boolean
           sort_order: number
           updated_at: string
           ward_number: number | null
@@ -2525,6 +2542,7 @@ export type Database = {
           price?: number
           price_unit?: string
           provider_user_id?: string | null
+          requires_location?: boolean
           sort_order?: number
           updated_at?: string
           ward_number?: number | null
@@ -2545,6 +2563,7 @@ export type Database = {
           price?: number
           price_unit?: string
           provider_user_id?: string | null
+          requires_location?: boolean
           sort_order?: number
           updated_at?: string
           ward_number?: number | null

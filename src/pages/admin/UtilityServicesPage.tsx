@@ -27,6 +27,7 @@ const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort
 const emptyService = {
   name: "", description: "", image_url: "", category_id: "", price: 0, price_unit: "fixed",
   contact_phone: "", contact_whatsapp: "", coverage_area: "", is_active: true, is_approved: true, sort_order: 0,
+  requires_location: true,
 };
 
 const UtilityServicesPage = () => {
@@ -95,7 +96,7 @@ const UtilityServicesPage = () => {
     setSvcOpen(false); setSvcForm(emptyService); setSvcEditId(null); fetchAll();
   };
 
-  const toggleServiceField = async (id: string, field: "is_active" | "is_approved", value: boolean) => {
+  const toggleServiceField = async (id: string, field: "is_active" | "is_approved" | "requires_location", value: boolean) => {
     const { error } = await supabase.from("utility_services").update({ [field]: value }).eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else fetchAll();
@@ -128,6 +129,7 @@ const UtilityServicesPage = () => {
       category_id: s.category_id ?? "", price: Number(s.price ?? 0), price_unit: s.price_unit ?? "fixed",
       contact_phone: s.contact_phone ?? "", contact_whatsapp: s.contact_whatsapp ?? "",
       coverage_area: s.coverage_area ?? "", is_active: s.is_active, is_approved: s.is_approved, sort_order: s.sort_order,
+      requires_location: s.requires_location ?? true,
     });
     setSvcEditId(s.id); setSvcOpen(true);
   };
@@ -283,6 +285,13 @@ const UtilityServicesPage = () => {
                       <div className="flex items-center gap-2"><Switch checked={svcForm.is_active} onCheckedChange={(v) => setSvcForm({ ...svcForm, is_active: v })} /><Label>Active</Label></div>
                       <div className="flex items-center gap-2"><Switch checked={svcForm.is_approved} onCheckedChange={(v) => setSvcForm({ ...svcForm, is_approved: v })} /><Label>Approved</Label></div>
                     </div>
+                    <div className="flex items-center gap-2 rounded-lg border p-3">
+                      <Switch checked={svcForm.requires_location} onCheckedChange={(v) => setSvcForm({ ...svcForm, requires_location: v })} />
+                      <div>
+                        <Label>Location required</Label>
+                        <p className="text-xs text-muted-foreground">Turn off for listings that do not need the customer's address or map location.</p>
+                      </div>
+                    </div>
                     <Button className="w-full" onClick={saveService}>Save</Button>
                   </div>
                 </DialogContent>
@@ -299,6 +308,7 @@ const UtilityServicesPage = () => {
                   <TableHead>Price</TableHead>
                   <TableHead>Approved</TableHead>
                   <TableHead>Active</TableHead>
+                  <TableHead>Location</TableHead>
                   <TableHead className="w-24">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -317,6 +327,7 @@ const UtilityServicesPage = () => {
                     </TableCell>
                     <TableCell><Switch checked={s.is_approved} onCheckedChange={(v) => toggleServiceField(s.id, "is_approved", v)} /></TableCell>
                     <TableCell><Switch checked={s.is_active} onCheckedChange={(v) => toggleServiceField(s.id, "is_active", v)} /></TableCell>
+                    <TableCell><Switch checked={s.requires_location ?? true} onCheckedChange={(v) => toggleServiceField(s.id, "requires_location", v)} /></TableCell>
                     <TableCell>
                       <div className="flex gap-1">
                         {hasPermission("update_services") && categories.find((c) => c.id === s.category_id)?.category_type === "product" && (
