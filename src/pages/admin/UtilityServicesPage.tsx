@@ -96,7 +96,7 @@ const UtilityServicesPage = () => {
     setSvcOpen(false); setSvcForm(emptyService); setSvcEditId(null); fetchAll();
   };
 
-  const toggleServiceField = async (id: string, field: "is_active" | "is_approved", value: boolean) => {
+  const toggleServiceField = async (id: string, field: "is_active" | "is_approved" | "requires_location", value: boolean) => {
     const { error } = await supabase.from("utility_services").update({ [field]: value }).eq("id", id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else fetchAll();
@@ -129,6 +129,7 @@ const UtilityServicesPage = () => {
       category_id: s.category_id ?? "", price: Number(s.price ?? 0), price_unit: s.price_unit ?? "fixed",
       contact_phone: s.contact_phone ?? "", contact_whatsapp: s.contact_whatsapp ?? "",
       coverage_area: s.coverage_area ?? "", is_active: s.is_active, is_approved: s.is_approved, sort_order: s.sort_order,
+      requires_location: s.requires_location ?? true,
     });
     setSvcEditId(s.id); setSvcOpen(true);
   };
