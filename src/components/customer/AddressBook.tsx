@@ -97,10 +97,8 @@ const AddressBook = ({ userId, defaultName, defaultPhone }: Props) => {
       toast.error("Please sign in first");
       return;
     }
-    if (!form.contact_name.trim()) return toast.error("Enter a name");
-    if (form.contact_phone.replace(/\D/g, "").length < 10) return toast.error("Enter a valid 10-digit phone number");
-    if (!form.address_line1.trim()) return toast.error("Enter the address");
-    if (form.pincode && !/^\d{6}$/.test(form.pincode)) return toast.error("Pincode must be 6 digits");
+    const invalid = validateAddressForm(form);
+    if (invalid) return toast.error(invalid);
 
     setSaving(true);
     const payload = {
