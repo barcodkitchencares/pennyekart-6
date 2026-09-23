@@ -30,20 +30,7 @@ interface Props {
   defaultPhone?: string | null;
 }
 
-const emptyForm = {
-  label: "Home",
-  contact_name: "",
-  contact_phone: "",
-  address_line1: "",
-  address_line2: "",
-  landmark: "",
-  city: "",
-  state: "Kerala",
-  pincode: "",
-  latitude: null as number | null,
-  longitude: null as number | null,
-  is_default: false,
-};
+const emptyForm = emptyAddressForm;
 
 const labelIcon = (label: string) =>
   label === "Work" ? Briefcase : label === "Home" ? Home : MapPin;
