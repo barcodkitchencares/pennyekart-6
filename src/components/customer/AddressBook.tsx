@@ -105,25 +105,6 @@ const AddressBook = ({ userId, defaultName, defaultPhone }: Props) => {
     setOpen(true);
   };
 
-  const useMyLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Location is not available on this device");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
-        setLocating(false);
-        toast.success("Location captured");
-      },
-      () => {
-        setLocating(false);
-        toast.error("Please allow location access and try again");
-      },
-      { enableHighAccuracy: true, timeout: 12000 }
-    );
-  };
 
   const save = async () => {
     if (!userId) {
