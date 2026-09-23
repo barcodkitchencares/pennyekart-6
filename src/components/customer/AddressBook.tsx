@@ -251,74 +251,7 @@ const AddressBook = ({ userId, defaultName, defaultPhone }: Props) => {
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Address" : "Add Address"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div>
-              <Label>Address type</Label>
-              <Select value={form.label} onValueChange={(v) => setForm((f) => ({ ...f, label: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Home">Home</SelectItem>
-                  <SelectItem value="Work">Work</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Name</Label>
-                <Input value={form.contact_name} onChange={(e) => setForm((f) => ({ ...f, contact_name: e.target.value }))} placeholder="Full name" />
-              </div>
-              <div>
-                <Label>Phone</Label>
-                <Input value={form.contact_phone} inputMode="numeric" maxLength={10}
-                  onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value.replace(/\D/g, "").slice(0, 10) }))}
-                  placeholder="10-digit number" />
-              </div>
-            </div>
-            <div>
-              <Label>House / Flat, Building</Label>
-              <Textarea rows={2} value={form.address_line1} onChange={(e) => setForm((f) => ({ ...f, address_line1: e.target.value }))} placeholder="House name/number, street" />
-            </div>
-            <div>
-              <Label>Area / Locality</Label>
-              <Input value={form.address_line2} onChange={(e) => setForm((f) => ({ ...f, address_line2: e.target.value }))} placeholder="Area, post office" />
-            </div>
-            <div>
-              <Label>Landmark (optional)</Label>
-              <Input value={form.landmark} onChange={(e) => setForm((f) => ({ ...f, landmark: e.target.value }))} placeholder="Near..." />
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label>City</Label>
-                <Input value={form.city} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-              </div>
-              <div>
-                <Label>State</Label>
-                <Input value={form.state} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value }))} />
-              </div>
-              <div>
-                <Label>Pincode</Label>
-                <Input value={form.pincode} inputMode="numeric" maxLength={6}
-                  onChange={(e) => setForm((f) => ({ ...f, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))} />
-              </div>
-            </div>
-
-            <Button type="button" variant="outline" className="w-full" onClick={useMyLocation} disabled={locating}>
-              {locating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LocateFixed className="h-4 w-4 mr-2" />}
-              {form.latitude != null ? "Update my current location" : "Use my current location"}
-            </Button>
-            {form.latitude != null && (
-              <p className="text-xs text-muted-foreground text-center">
-                Pinned: {form.latitude.toFixed(5)}, {form.longitude?.toFixed(5)}
-              </p>
-            )}
-
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input type="checkbox" checked={form.is_default}
-                onChange={(e) => setForm((f) => ({ ...f, is_default: e.target.checked }))} />
-              Set as my default delivery address
-            </label>
-          </div>
+          <AddressFormFields form={form} setForm={setForm} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
             <Button onClick={save} disabled={saving}>
