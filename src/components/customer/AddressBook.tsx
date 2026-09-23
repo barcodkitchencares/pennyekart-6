@@ -41,7 +41,6 @@ const AddressBook = ({ userId, defaultName, defaultPhone }: Props) => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [locating, setLocating] = useState(false);
   const [form, setForm] = useState(emptyForm);
 
   const load = useCallback(async () => {
