@@ -27,6 +27,7 @@ const emptyCategory = { name: "", description: "", icon: "", image_url: "", sort
 const emptyService = {
   name: "", description: "", image_url: "", category_id: "", price: 0, price_unit: "fixed",
   contact_phone: "", contact_whatsapp: "", coverage_area: "", is_active: true, is_approved: true, sort_order: 0,
+  requires_location: true,
 };
 
 const UtilityServicesPage = () => {
