@@ -36,6 +36,10 @@ const UtilityServices = () => {
   const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState<UtilityService | null>(null);
   const [form, setForm] = useState({ contact_name: "", contact_phone: "", address: "" });
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [addrMode, setAddrMode] = useState<"saved" | "new">("saved");
+  const [addrForm, setAddrForm] = useState<AddressFormValues>(emptyAddressForm);
   const [submitting, setSubmitting] = useState(false);
   const [variants, setVariants] = useState<UtilityVariant[]>([]);
   const [variantId, setVariantId] = useState<string | null>(null);
