@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55",
-  appName: "pennyekart",
+  appName: "Pennyekart",
   webDir: "dist",
 
   // The app loads the LIVE website, so every site update appears in the

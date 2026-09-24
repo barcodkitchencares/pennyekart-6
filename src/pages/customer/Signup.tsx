@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
@@ -204,6 +205,7 @@ const CustomerSignup = () => {
             <p className="text-center text-sm text-muted-foreground">
               Already registered? <Link to="/customer/login" className="text-primary underline">Login here</Link>
             </p>
+            <LegalLinks className="pt-2" />
           </form>
         </CardContent>
       </Card>

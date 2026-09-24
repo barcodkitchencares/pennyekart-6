@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
@@ -81,6 +82,7 @@ const PartnerLogin = ({ userType, title, dashboardPath, signupPath, forgotPath }
               <Link to={forgotPath} className="text-primary underline">Forgot Password?</Link>
               <Link to={signupPath} className="text-primary underline">Sign Up</Link>
             </div>
+            <LegalLinks className="pt-2" />
           </form>
         </CardContent>
       </Card>

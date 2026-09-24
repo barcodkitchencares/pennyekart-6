@@ -1,3 +1,4 @@
+import { explainPermission } from "@/lib/permissionPrompt";
 import { useState } from "react";
 import { Loader2, LocateFixed } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -70,7 +71,7 @@ const AddressFormFields = ({ form, setForm, showLabel = true, showDefaultToggle 
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
+    explainPermission("location").then((ok) => !ok ? setLocating(false) : navigator.geolocation.getCurrentPosition(
       (pos) => {
         setForm((f) => ({ ...f, latitude: pos.coords.latitude, longitude: pos.coords.longitude }));
         setLocating(false);
@@ -81,7 +82,7 @@ const AddressFormFields = ({ form, setForm, showLabel = true, showDefaultToggle 
         toast.error("Please allow location access and try again");
       },
       { enableHighAccuracy: true, timeout: 12000 }
-    );
+    ));
   };
 
   return (

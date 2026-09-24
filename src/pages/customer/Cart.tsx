@@ -1,3 +1,4 @@
+import { explainPermission } from "@/lib/permissionPrompt";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Trash2, ShieldCheck, Clock, MapPin, Share2, LocateFixed } from "lucide-react";
@@ -726,7 +727,7 @@ const Cart = () => {
                     return;
                   }
                   setLocatingGps(true);
-                  navigator.geolocation.getCurrentPosition(
+                  explainPermission("location").then((ok) => !ok ? setLocatingGps(false) : navigator.geolocation.getCurrentPosition(
                     async (position) => {
                       const { latitude, longitude } = position.coords;
                       await supabase
@@ -743,7 +744,7 @@ const Cart = () => {
                       toast.error("Unable to get location. Please enable location access.");
                     },
                     { enableHighAccuracy: true, timeout: 10000 }
-                  );
+                  ));
                 }}
                 disabled={locatingGps}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
@@ -770,7 +771,7 @@ const Cart = () => {
                     return;
                   }
                   toast.info("Getting your location...");
-                  navigator.geolocation.getCurrentPosition(
+                  explainPermission("location").then((ok) => ok && navigator.geolocation.getCurrentPosition(
                     async (position) => {
                       const { latitude, longitude } = position.coords;
                       // Save permanently
@@ -792,7 +793,7 @@ const Cart = () => {
                       toast.error("Unable to get location. Please enable location access.");
                     },
                     { enableHighAccuracy: true, timeout: 10000 }
-                  );
+                  ));
                 }}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-500/20 transition-colors dark:text-green-400"
               >

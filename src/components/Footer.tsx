@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import logo from "@/assets/logo.png";
 
 const Footer = () => (
@@ -26,6 +27,7 @@ const Footer = () => (
     </div>
     <div className="container mt-8 border-t pt-6 text-center text-xs text-muted-foreground">
       © 2026 Pennyekart. All rights reserved.
+      <LegalLinks showDelete className="mt-2" />
     </div>
   </footer>
 );

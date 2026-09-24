@@ -1,3 +1,4 @@
+import AccountSettingsSection from "@/components/AccountSettingsSection";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -125,6 +126,7 @@ const DeliveryStaffDashboard = () => {
             </TabsContent>
           </Tabs>
         ) : null}
+        <AccountSettingsSection className="space-y-3 pt-4" />
       </main>
       {user && (
         <NewOrderNotification
