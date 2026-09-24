@@ -16,9 +16,7 @@ export const nativePlatform = (): "android" | "ios" | "web" =>
  * - Hides the native splash screen once React has mounted
  * - Android hardware back button: navigates back in history, or moves the
  *   app to the background when already at the top level
- * - Push notifications: requests permission and registers the device.
- *   The FCM token arrives in the "registration" listener — wire it to a
- *   profile field here when you're ready to target devices server-side.
+ * - Push notifications: registers only if already granted; never prompts at launch.
  */
 export const initNativeApp = async () => {
   if (!isNativeApp()) return;
@@ -56,19 +54,11 @@ export const initNativeApp = async () => {
   }
 
   try {
+    // Listeners only — permission is NOT requested at launch. It is requested
+    // from the profile ("Turn on notifications") after an explanation popup.
     const { PushNotifications } = await import("@capacitor/push-notifications");
-    const perm = await PushNotifications.requestPermissions();
-    if (perm.receive === "granted") {
-      await PushNotifications.register();
-    }
-    await PushNotifications.addListener("registration", (token) => {
-      // Device push token — ready to be stored against the user's profile
-      // when server-side push targeting is added.
-      console.log("[push] device token registered", token.value.slice(0, 12) + "…");
-    });
-    await PushNotifications.addListener("registrationError", (err) => {
-      console.warn("[push] registration failed", err.error);
-    });
+    const perm = await PushNotifications.checkPermissions();
+    if (perm.receive === "granted") await PushNotifications.register();
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const url = (action.notification.data as { url?: string } | undefined)?.url;
       if (url && url.startsWith("/")) {
@@ -78,4 +68,21 @@ export const initNativeApp = async () => {
   } catch {
     // push unavailable (e.g. missing google-services.json yet) — ignore
   }
+};
+
+/** Explains, then asks for notification permission. Returns true when granted. */
+export const enableNotifications = async (): Promise<boolean> => {
+  const { explainPermission } = await import("@/lib/permissionPrompt");
+  if (!(await explainPermission("notifications"))) return false;
+  if (isNativeApp()) {
+    try {
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+      const perm = await PushNotifications.requestPermissions();
+      if (perm.receive !== "granted") return false;
+      await PushNotifications.register();
+      return true;
+    } catch { return false; }
+  }
+  if (typeof Notification === "undefined") return false;
+  return (await Notification.requestPermission()) === "granted";
 };
