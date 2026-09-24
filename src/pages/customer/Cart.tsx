@@ -1,3 +1,4 @@
+import { explainPermission } from "@/lib/permissionPrompt";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Minus, Plus, Trash2, ShieldCheck, Clock, MapPin, Share2, LocateFixed } from "lucide-react";
@@ -726,7 +727,7 @@ const Cart = () => {
                     return;
                   }
                   setLocatingGps(true);
-                  navigator.geolocation.getCurrentPosition(
+                  explainPermission("location").then((ok) => ok && navigator.geolocation.getCurrentPosition(
                     async (position) => {
                       const { latitude, longitude } = position.coords;
                       await supabase
@@ -770,7 +771,7 @@ const Cart = () => {
                     return;
                   }
                   toast.info("Getting your location...");
-                  navigator.geolocation.getCurrentPosition(
+                  explainPermission("location").then((ok) => ok && navigator.geolocation.getCurrentPosition(
                     async (position) => {
                       const { latitude, longitude } = position.coords;
                       // Save permanently

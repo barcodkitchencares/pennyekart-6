@@ -1,3 +1,5 @@
+import AccountSettingsSection from "@/components/AccountSettingsSection";
+import NotificationToggle from "@/components/NotificationToggle";
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Package, Clock, CheckCircle, Truck, MapPin, User, Phone, Mail, ChevronRight, ShoppingBag, Heart, Bell, Wallet, XCircle, RotateCcw, ExternalLink } from "lucide-react";
@@ -572,6 +574,9 @@ const Profile = () => {
           onOpenChange={(o) => { setDetailOpen(o); if (!o) setTimeout(() => setSelectedNotification(null), 200); }}
         />
 
+
+        <NotificationToggle />
+        <AccountSettingsSection className="space-y-3" />
 
         {/* Logout */}
         <Button variant="destructive" className="w-full" onClick={async () => { await signOut(); navigate("/"); }}>

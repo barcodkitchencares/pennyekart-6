@@ -13,6 +13,7 @@ import AdminPendingOrdersNotification from "./AdminPendingOrdersNotification";
 const navItems = [
   { label: "Dashboard", icon: LayoutDashboard, path: "/admin", perm: null },
   { label: "Users", icon: Users, path: "/admin/users", perm: "read_users" },
+  { label: "Deletion Requests", icon: Users, path: "/admin/deletion-requests", perm: "read_users" },
   { label: "Roles & Permissions", icon: ShieldCheck, path: "/admin/roles", perm: null, superOnly: true },
   { label: "Categories", icon: Grid3X3, path: "/admin/categories", perm: "read_categories" },
   { label: "Products", icon: Package, path: "/admin/products", perm: "read_products" },

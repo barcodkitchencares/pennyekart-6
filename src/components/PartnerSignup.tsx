@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import { useState, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { CalendarIcon, Camera, X } from "lucide-react";
@@ -275,6 +276,7 @@ const PartnerSignup = ({ userType, title, description, sellerType, loginPath: lo
             <p className="text-center text-sm text-muted-foreground">
               Already registered? <Link to={loginPath} className="text-primary underline">Login here</Link>
             </p>
+            <LegalLinks className="pt-2" />
           </form>
         </CardContent>
       </Card>

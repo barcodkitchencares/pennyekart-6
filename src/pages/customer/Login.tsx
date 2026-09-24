@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
@@ -109,6 +110,7 @@ const CustomerLogin = () => {
               <span>·</span>
               <Link to="/delivery-staff/login" className="text-primary underline">Delivery Partner Login</Link>
             </div>
+            <LegalLinks className="pt-2" />
           </form>
         </CardContent>
       </Card>

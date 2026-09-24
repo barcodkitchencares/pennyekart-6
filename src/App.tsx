@@ -71,6 +71,11 @@ import PlayVideos from "./pages/customer/PlayVideos";
 import CategoryProducts from "./pages/customer/CategoryProducts";
 import ChatBot from "./components/ChatBot";
 import PullToRefresh from "./components/PullToRefresh";
+import PermissionPrompt from "./components/PermissionPrompt";
+import PrivacyPolicy from "./pages/legal/PrivacyPolicy";
+import Terms from "./pages/legal/Terms";
+import DeleteAccount from "./pages/legal/DeleteAccount";
+import DeletionRequestsPage from "./pages/admin/DeletionRequestsPage";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +160,10 @@ const AppRoutes = () => {
         </ProtectedPartnerRoute>
       } />
 
+      <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/delete-account" element={<DeleteAccount />} />
+      <Route path="/admin/deletion-requests" element={<ProtectedRoute requirePermission="read_users"><DeletionRequestsPage /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -179,6 +188,7 @@ const App = () => {
                 <ChatBot />
                 <NotificationPopup />
                 <PullToRefresh />
+                <PermissionPrompt />
               </CartProvider>
             </AuthProvider>
           </BrowserRouter>

@@ -1,3 +1,4 @@
+import AccountSettingsSection from "@/components/AccountSettingsSection";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -414,6 +415,7 @@ const UtilityPartnerDashboard = () => {
           </span>
         </button>
       )}
+      <AccountSettingsSection />
     </div>
 
   );

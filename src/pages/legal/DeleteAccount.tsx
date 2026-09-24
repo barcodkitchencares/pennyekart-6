@@ -1,3 +1,4 @@
+import LegalLinks from "@/components/LegalLinks";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ const DeleteAccount = () => {
 
       <h2>Privacy contact</h2>
       <ContactBlock />
+      <LegalLinks className="mt-6" />
     </LegalPageLayout>
   );
 };

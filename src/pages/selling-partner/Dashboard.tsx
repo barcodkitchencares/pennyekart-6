@@ -1,3 +1,4 @@
+import AccountSettingsSection from "@/components/AccountSettingsSection";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -1192,6 +1193,7 @@ const SellingPartnerDashboard = () => {
         onOpenChange={(v) => { if (!v) setDetailOrder(null); }}
         statusLabel={(s) => STATUS_LABELS[s] || s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
       />
+      <AccountSettingsSection />
     </div>
   );
 };

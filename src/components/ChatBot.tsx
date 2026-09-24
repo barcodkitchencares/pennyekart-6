@@ -1,3 +1,4 @@
+import { explainPermission } from "@/lib/permissionPrompt";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Mic, MicOff, Menu, Lock, ShieldCheck } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -188,6 +189,7 @@ const ChatBot = () => {
 
     // Explicitly request mic permission first — without this the recognizer
     // often fails silently with "not-allowed" inside embedded/preview frames.
+    if (!(await explainPermission("microphone"))) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((t) => t.stop());
