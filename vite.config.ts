@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "es2015",
   },
+  esbuild: mode === "production" ? { drop: ["debugger"], pure: ["console.log", "console.debug", "console.info"] } : undefined,
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
