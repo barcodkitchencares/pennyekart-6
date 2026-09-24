@@ -547,9 +547,55 @@ const UtilityServices = () => {
                 </div>
               </div>
             )}
-            <div><Label>Your Name</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
-            <div><Label>Phone</Label><Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10-digit number" /></div>
-            <div><Label>Address</Label><Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            {!needsLocation ? (
+              <>
+                <div><Label>Your Name</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
+                <div><Label>Phone</Label><Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10-digit number" /></div>
+                <p className="text-xs text-muted-foreground">This listing does not need your address.</p>
+              </>
+            ) : addrMode === "saved" && savedAddresses.length > 0 ? (
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary" />Delivery location</Label>
+                  <Button size="sm" variant="ghost" onClick={() => setAddrMode("new")}>Add new</Button>
+                </div>
+                {savedAddresses.length > 1 ? (
+                  <div className="space-y-2">
+                    {savedAddresses.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setSelectedAddressId(a.id)}
+                        className={`w-full rounded-lg border p-2 text-left text-sm transition-colors ${
+                          a.id === selectedAddressId ? "border-primary bg-primary/5" : "hover:border-primary"
+                        }`}
+                      >
+                        <span className="font-medium">{a.label}</span>
+                        {a.is_default && <Badge className="ml-2 text-[10px]">Default</Badge>}
+                        <div className="text-xs text-muted-foreground">{a.contact_name} · {a.contact_phone}</div>
+                        <div className="text-xs text-muted-foreground">{formatAddressText(a)}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm">
+                    <div className="font-medium">{selectedAddress?.contact_name} · {selectedAddress?.contact_phone}</div>
+                    <div className="text-xs text-muted-foreground">{selectedAddress ? formatAddressText(selectedAddress) : ""}</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary" />Add your delivery location</Label>
+                  {savedAddresses.length > 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => setAddrMode("saved")}>Use saved</Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">We will save this to your profile addresses for next time.</p>
+                <AddressFormFields form={addrForm} setForm={setAddrForm} />
+              </div>
+            )}
             <Button className="w-full" onClick={submitRequest} disabled={submitting}>
               {submitting ? "Sending..." : variants.length ? `Place Order · ₹${orderTotal}` : "Send Request"}
             </Button>
