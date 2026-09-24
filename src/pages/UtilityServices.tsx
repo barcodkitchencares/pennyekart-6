@@ -162,37 +162,135 @@ const UtilityServices = () => {
     navigate("/");
   };
 
-  const openBooking = (s: UtilityService) => {
+  const needsLocation = booking?.requires_location !== false;
+  const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId) ?? null;
+
+  const openBooking = async (s: UtilityService) => {
     if (!user) {
       toast({ title: "Please log in", description: "Log in to request a service." });
       navigate("/customer/login");
       return;
     }
-    setForm({
-      contact_name: profile?.full_name ?? "",
-      contact_phone: (profile as any)?.mobile_number ?? "",
-      address: (profile as any)?.business_address ?? "",
-    });
+    const name = profile?.full_name ?? "";
+    const phone = String((profile as any)?.mobile_number ?? "").replace(/\D/g, "").slice(-10);
+    setForm({ contact_name: name, contact_phone: phone, address: "" });
     setBooking(s);
+
+    const { data } = await supabase
+      .from("customer_addresses")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: false });
+    const list = (data as SavedAddress[]) ?? [];
+    setSavedAddresses(list);
+    const first = list[0] ?? null;
+    setSelectedAddressId(first?.id ?? null);
+    setAddrMode(first ? "saved" : "new");
+    setAddrForm({
+      ...emptyAddressForm,
+      contact_name: name,
+      contact_phone: phone,
+      is_default: list.length === 0,
+    });
+    if (first) {
+      setForm({ contact_name: first.contact_name, contact_phone: first.contact_phone, address: formatAddressText(first) });
+    }
   };
+
+  // keep the contact fields in sync with the chosen saved address
+  useEffect(() => {
+    if (addrMode !== "saved" || !selectedAddress) return;
+    setForm({
+      contact_name: selectedAddress.contact_name,
+      contact_phone: selectedAddress.contact_phone,
+      address: formatAddressText(selectedAddress),
+    });
+  }, [selectedAddressId, addrMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitRequest = async () => {
     if (!booking || !user) return;
-    if (!form.contact_name.trim() || !/^\d{10}$/.test(form.contact_phone)) {
-      toast({ title: "Enter your name and a valid 10-digit phone", variant: "destructive" });
-      return;
-    }
     if (variants.length > 0 && !selectedVariant) {
       toast({ title: "Please choose a pack", variant: "destructive" });
       return;
     }
+
+    let addressText = form.address;
+    let addressId: string | null = null;
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let contactName = form.contact_name.trim();
+    let contactPhone = form.contact_phone;
+
+    if (needsLocation) {
+      if (addrMode === "new" || savedAddresses.length === 0) {
+        const invalid = validateAddressForm(addrForm);
+        if (invalid) {
+          toast({ title: invalid, variant: "destructive" });
+          return;
+        }
+        setSubmitting(true);
+        const { data: inserted, error: addrErr } = await supabase
+          .from("customer_addresses")
+          .insert({
+            user_id: user.id,
+            label: addrForm.label,
+            contact_name: addrForm.contact_name.trim(),
+            contact_phone: addrForm.contact_phone.replace(/\D/g, "").slice(-10),
+            address_line1: addrForm.address_line1.trim(),
+            address_line2: addrForm.address_line2.trim() || null,
+            landmark: addrForm.landmark.trim() || null,
+            city: addrForm.city.trim() || null,
+            state: addrForm.state.trim() || null,
+            pincode: addrForm.pincode.trim() || null,
+            latitude: addrForm.latitude,
+            longitude: addrForm.longitude,
+            is_default: addrForm.is_default || savedAddresses.length === 0,
+          })
+          .select("*")
+          .single();
+        if (addrErr || !inserted) {
+          setSubmitting(false);
+          toast({ title: "Could not save your location", description: addrErr?.message, variant: "destructive" });
+          return;
+        }
+        const saved = inserted as SavedAddress;
+        addressId = saved.id;
+        addressText = formatAddressText(saved);
+        lat = saved.latitude;
+        lng = saved.longitude;
+        contactName = saved.contact_name;
+        contactPhone = saved.contact_phone;
+      } else {
+        if (!selectedAddress) {
+          toast({ title: "Please choose a delivery location", variant: "destructive" });
+          return;
+        }
+        addressId = selectedAddress.id;
+        addressText = formatAddressText(selectedAddress);
+        lat = selectedAddress.latitude;
+        lng = selectedAddress.longitude;
+        contactName = selectedAddress.contact_name;
+        contactPhone = selectedAddress.contact_phone;
+      }
+    }
+
+    if (!contactName || !/^\d{10}$/.test(contactPhone)) {
+      setSubmitting(false);
+      toast({ title: "Enter your name and a valid 10-digit phone", variant: "destructive" });
+      return;
+    }
+
     setSubmitting(true);
     const { error } = await supabase.from("utility_service_requests").insert({
       service_id: booking.id,
       customer_user_id: user.id,
-      contact_name: form.contact_name.trim(),
-      contact_phone: form.contact_phone,
-      address: form.address || null,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      address: addressText || null,
+      address_id: addressId,
+      latitude: lat,
+      longitude: lng,
       variant_id: selectedVariant?.id ?? null,
       variant_label: selectedVariant?.label ?? null,
       quantity: qty,
@@ -449,9 +547,55 @@ const UtilityServices = () => {
                 </div>
               </div>
             )}
-            <div><Label>Your Name</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
-            <div><Label>Phone</Label><Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10-digit number" /></div>
-            <div><Label>Address</Label><Textarea rows={2} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
+            {!needsLocation ? (
+              <>
+                <div><Label>Your Name</Label><Input value={form.contact_name} onChange={(e) => setForm({ ...form, contact_name: e.target.value })} /></div>
+                <div><Label>Phone</Label><Input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value.replace(/\D/g, "").slice(0, 10) })} placeholder="10-digit number" /></div>
+                <p className="text-xs text-muted-foreground">This listing does not need your address.</p>
+              </>
+            ) : addrMode === "saved" && savedAddresses.length > 0 ? (
+              <div className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary" />Delivery location</Label>
+                  <Button size="sm" variant="ghost" onClick={() => setAddrMode("new")}>Add new</Button>
+                </div>
+                {savedAddresses.length > 1 ? (
+                  <div className="space-y-2">
+                    {savedAddresses.map((a) => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => setSelectedAddressId(a.id)}
+                        className={`w-full rounded-lg border p-2 text-left text-sm transition-colors ${
+                          a.id === selectedAddressId ? "border-primary bg-primary/5" : "hover:border-primary"
+                        }`}
+                      >
+                        <span className="font-medium">{a.label}</span>
+                        {a.is_default && <Badge className="ml-2 text-[10px]">Default</Badge>}
+                        <div className="text-xs text-muted-foreground">{a.contact_name} · {a.contact_phone}</div>
+                        <div className="text-xs text-muted-foreground">{formatAddressText(a)}</div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm">
+                    <div className="font-medium">{selectedAddress?.contact_name} · {selectedAddress?.contact_phone}</div>
+                    <div className="text-xs text-muted-foreground">{selectedAddress ? formatAddressText(selectedAddress) : ""}</div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5 text-primary" />Add your delivery location</Label>
+                  {savedAddresses.length > 0 && (
+                    <Button size="sm" variant="ghost" onClick={() => setAddrMode("saved")}>Use saved</Button>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">We will save this to your profile addresses for next time.</p>
+                <AddressFormFields form={addrForm} setForm={setAddrForm} />
+              </div>
+            )}
             <Button className="w-full" onClick={submitRequest} disabled={submitting}>
               {submitting ? "Sending..." : variants.length ? `Place Order · ₹${orderTotal}` : "Send Request"}
             </Button>

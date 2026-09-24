@@ -167,6 +167,16 @@ const UtilityPartnerDashboard = () => {
           <Badge variant="outline">{statusLabel(r.status)}</Badge>
         </div>
         {r.address && <p className="text-sm">{r.address}</p>}
+        {r.latitude != null && r.longitude != null && (
+          <a
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary underline"
+            href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Open location on map
+          </a>
+        )}
         {r.variant_label && (
           <p className="text-sm font-medium text-primary">
             {r.variant_label} × {r.quantity ?? 1}
@@ -369,6 +379,16 @@ const UtilityPartnerDashboard = () => {
                   </p>
                 )}
                 {r.address && <p className="text-sm">{r.address}</p>}
+                {r.latitude != null && r.longitude != null && (
+                  <a
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline"
+                    href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open location on map
+                  </a>
+                )}
                 <div className="flex gap-2 pt-1">
                   <Button size="sm" className="flex-1" onClick={() => setRequestStatus(r.id, "assigned")}>
                     <Check className="mr-1.5 h-3.5 w-3.5" /> Accept
