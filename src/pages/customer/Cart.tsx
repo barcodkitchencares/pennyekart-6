@@ -727,7 +727,7 @@ const Cart = () => {
                     return;
                   }
                   setLocatingGps(true);
-                  explainPermission("location").then((ok) => ok && navigator.geolocation.getCurrentPosition(
+                  explainPermission("location").then((ok) => !ok ? setLocatingGps(false) : navigator.geolocation.getCurrentPosition(
                     async (position) => {
                       const { latitude, longitude } = position.coords;
                       await supabase
