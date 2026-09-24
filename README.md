@@ -54,7 +54,7 @@ npm run dev
 
 This project is built with:
 
-- Vite
+- /Vite
 - TypeScript
 - React
 - shadcn-ui
@@ -83,3 +83,4 @@ Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/c
 30/08/26 organelife
 30/08/26 farmelife 
 18/09/26 pennyekart
+24/09/26 pennyekart
