@@ -162,37 +162,135 @@ const UtilityServices = () => {
     navigate("/");
   };
 
-  const openBooking = (s: UtilityService) => {
+  const needsLocation = booking?.requires_location !== false;
+  const selectedAddress = savedAddresses.find((a) => a.id === selectedAddressId) ?? null;
+
+  const openBooking = async (s: UtilityService) => {
     if (!user) {
       toast({ title: "Please log in", description: "Log in to request a service." });
       navigate("/customer/login");
       return;
     }
-    setForm({
-      contact_name: profile?.full_name ?? "",
-      contact_phone: (profile as any)?.mobile_number ?? "",
-      address: (profile as any)?.business_address ?? "",
-    });
+    const name = profile?.full_name ?? "";
+    const phone = String((profile as any)?.mobile_number ?? "").replace(/\D/g, "").slice(-10);
+    setForm({ contact_name: name, contact_phone: phone, address: "" });
     setBooking(s);
+
+    const { data } = await supabase
+      .from("customer_addresses")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: false });
+    const list = (data as SavedAddress[]) ?? [];
+    setSavedAddresses(list);
+    const first = list[0] ?? null;
+    setSelectedAddressId(first?.id ?? null);
+    setAddrMode(first ? "saved" : "new");
+    setAddrForm({
+      ...emptyAddressForm,
+      contact_name: name,
+      contact_phone: phone,
+      is_default: list.length === 0,
+    });
+    if (first) {
+      setForm({ contact_name: first.contact_name, contact_phone: first.contact_phone, address: formatAddressText(first) });
+    }
   };
+
+  // keep the contact fields in sync with the chosen saved address
+  useEffect(() => {
+    if (addrMode !== "saved" || !selectedAddress) return;
+    setForm({
+      contact_name: selectedAddress.contact_name,
+      contact_phone: selectedAddress.contact_phone,
+      address: formatAddressText(selectedAddress),
+    });
+  }, [selectedAddressId, addrMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const submitRequest = async () => {
     if (!booking || !user) return;
-    if (!form.contact_name.trim() || !/^\d{10}$/.test(form.contact_phone)) {
-      toast({ title: "Enter your name and a valid 10-digit phone", variant: "destructive" });
-      return;
-    }
     if (variants.length > 0 && !selectedVariant) {
       toast({ title: "Please choose a pack", variant: "destructive" });
       return;
     }
+
+    let addressText = form.address;
+    let addressId: string | null = null;
+    let lat: number | null = null;
+    let lng: number | null = null;
+    let contactName = form.contact_name.trim();
+    let contactPhone = form.contact_phone;
+
+    if (needsLocation) {
+      if (addrMode === "new" || savedAddresses.length === 0) {
+        const invalid = validateAddressForm(addrForm);
+        if (invalid) {
+          toast({ title: invalid, variant: "destructive" });
+          return;
+        }
+        setSubmitting(true);
+        const { data: inserted, error: addrErr } = await supabase
+          .from("customer_addresses")
+          .insert({
+            user_id: user.id,
+            label: addrForm.label,
+            contact_name: addrForm.contact_name.trim(),
+            contact_phone: addrForm.contact_phone.replace(/\D/g, "").slice(-10),
+            address_line1: addrForm.address_line1.trim(),
+            address_line2: addrForm.address_line2.trim() || null,
+            landmark: addrForm.landmark.trim() || null,
+            city: addrForm.city.trim() || null,
+            state: addrForm.state.trim() || null,
+            pincode: addrForm.pincode.trim() || null,
+            latitude: addrForm.latitude,
+            longitude: addrForm.longitude,
+            is_default: addrForm.is_default || savedAddresses.length === 0,
+          })
+          .select("*")
+          .single();
+        if (addrErr || !inserted) {
+          setSubmitting(false);
+          toast({ title: "Could not save your location", description: addrErr?.message, variant: "destructive" });
+          return;
+        }
+        const saved = inserted as SavedAddress;
+        addressId = saved.id;
+        addressText = formatAddressText(saved);
+        lat = saved.latitude;
+        lng = saved.longitude;
+        contactName = saved.contact_name;
+        contactPhone = saved.contact_phone;
+      } else {
+        if (!selectedAddress) {
+          toast({ title: "Please choose a delivery location", variant: "destructive" });
+          return;
+        }
+        addressId = selectedAddress.id;
+        addressText = formatAddressText(selectedAddress);
+        lat = selectedAddress.latitude;
+        lng = selectedAddress.longitude;
+        contactName = selectedAddress.contact_name;
+        contactPhone = selectedAddress.contact_phone;
+      }
+    }
+
+    if (!contactName || !/^\d{10}$/.test(contactPhone)) {
+      setSubmitting(false);
+      toast({ title: "Enter your name and a valid 10-digit phone", variant: "destructive" });
+      return;
+    }
+
     setSubmitting(true);
     const { error } = await supabase.from("utility_service_requests").insert({
       service_id: booking.id,
       customer_user_id: user.id,
-      contact_name: form.contact_name.trim(),
-      contact_phone: form.contact_phone,
-      address: form.address || null,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      address: addressText || null,
+      address_id: addressId,
+      latitude: lat,
+      longitude: lng,
       variant_id: selectedVariant?.id ?? null,
       variant_label: selectedVariant?.label ?? null,
       quantity: qty,
