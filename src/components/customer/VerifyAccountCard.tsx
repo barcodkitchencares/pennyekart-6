@@ -53,19 +53,15 @@ const VerifyAccountCard = ({ userId, profileMobile }: Props) => {
     }
 
     setBusy(true);
-    const generated = String(Math.floor(100000 + Math.random() * 900000));
-    const expires = new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000).toISOString();
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({ verification_code: generated, verification_code_expires_at: expires } as never)
-      .eq("user_id", userId);
+    const { data, error } = await supabase.functions.invoke("send-verification", { body: { mobile: entered } });
     setBusy(false);
-
-    if (error) {
-      toast.error("Could not start verification. Please try again.");
+    const serverErr = (data as { error?: string } | null)?.error;
+    if (serverErr === "mismatch") { setMismatch(true); return; }
+    if (error || serverErr || !(data as { code?: string })?.code) {
+      toast.error(serverErr || "Could not start verification. Please try again.");
       return;
     }
+    const generated = (data as { code: string }).code;
 
     const text = encodeURIComponent(
       `Pennyekart account verification\n\nYour verification code is: ${generated}\n\nValid for ${CODE_TTL_MINUTES} minutes. Do not share this code with anyone.`,
@@ -82,40 +78,16 @@ const VerifyAccountCard = ({ userId, profileMobile }: Props) => {
       return;
     }
     setBusy(true);
-    const { data } = await supabase
-      .from("profiles")
-      .select("verification_code, verification_code_expires_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    const row = data as { verification_code?: string | null; verification_code_expires_at?: string | null } | null;
-
-    if (!row?.verification_code || !row.verification_code_expires_at || new Date(row.verification_code_expires_at) < new Date()) {
-      setBusy(false);
+    const { data, error } = await supabase.functions.invoke("check-verification", { body: { code: entered } });
+    setBusy(false);
+    const serverErr = (data as { error?: string } | null)?.error;
+    if (serverErr === "expired") {
       toast.error("Code expired. Please request a new code.");
       setStep("mobile");
       return;
     }
-
-    if (row.verification_code !== entered) {
-      setBusy(false);
-      toast.error("Incorrect code. Please check your WhatsApp message.");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        is_verified: true,
-        verified_at: new Date().toISOString(),
-        verification_code: null,
-        verification_code_expires_at: null,
-      } as never)
-      .eq("user_id", userId);
-    setBusy(false);
-
-    if (error) {
-      toast.error("Verification failed. Please try again.");
+    if (error || serverErr || !(data as { ok?: boolean })?.ok) {
+      toast.error(serverErr || "Verification failed. Please try again.");
       return;
     }
 
