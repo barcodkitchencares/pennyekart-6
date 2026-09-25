@@ -24,7 +24,6 @@
         "npm:@capacitor/android@^8.5.2",
         "npm:@capacitor/app@^8.1.1",
         "npm:@capacitor/assets@^3.0.5",
-        "npm:@capacitor/camera@^8.2.4",
         "npm:@capacitor/cli@^8.5.2",
         "npm:@capacitor/core@^8.5.2",
         "npm:@capacitor/geolocation@^8.2.2",
