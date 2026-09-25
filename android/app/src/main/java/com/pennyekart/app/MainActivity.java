@@ -1,4 +1,4 @@
-package app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55;
+package com.pennyekart.app;
 
 import com.getcapacitor.BridgeActivity;
 

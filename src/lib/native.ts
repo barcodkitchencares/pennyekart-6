@@ -1,6 +1,14 @@
 import { Capacitor } from "@capacitor/core";
 
 /**
+ * Set to true ONLY after android/app/google-services.json (Firebase) is added.
+ * Without it, PushNotifications.register() throws a native
+ * "Default FirebaseApp is not initialized" exception on the CapacitorPlugins
+ * thread, which kills the app (cannot be caught from JavaScript).
+ */
+export const PUSH_CONFIGURED = false;
+
+/**
  * True only when running inside the native Android/iOS shell.
  * Everything native must be gated behind this so the web app is untouched.
  */
@@ -58,7 +66,7 @@ export const initNativeApp = async () => {
     // from the profile ("Turn on notifications") after an explanation popup.
     const { PushNotifications } = await import("@capacitor/push-notifications");
     const perm = await PushNotifications.checkPermissions();
-    if (perm.receive === "granted") await PushNotifications.register();
+    if (PUSH_CONFIGURED && perm.receive === "granted") await PushNotifications.register();
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const url = (action.notification.data as { url?: string } | undefined)?.url;
       if (url && url.startsWith("/")) {
@@ -79,7 +87,7 @@ export const enableNotifications = async (): Promise<boolean> => {
       const { PushNotifications } = await import("@capacitor/push-notifications");
       const perm = await PushNotifications.requestPermissions();
       if (perm.receive !== "granted") return false;
-      await PushNotifications.register();
+      if (PUSH_CONFIGURED) await PushNotifications.register();
       return true;
     } catch { return false; }
   }

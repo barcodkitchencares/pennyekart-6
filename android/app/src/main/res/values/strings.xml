@@ -2,6 +2,6 @@
 <resources>
     <string name="app_name">Pennyekart</string>
     <string name="title_activity_main">Pennyekart</string>
-    <string name="package_name">app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55</string>
-    <string name="custom_url_scheme">app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55</string>
+    <string name="package_name">com.pennyekart.app</string>
+    <string name="custom_url_scheme">com.pennyekart.app</string>
 </resources>
