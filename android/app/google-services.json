@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "831722439",
+    "project_id": "pennyekart9094",
+    "storage_bucket": "pennyekart9094.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:831722439:android:5c0732622f3caf07113fe2",
+        "android_client_info": {
+          "package_name": "app.lovable.p5b3cdc4867ea449aa3d42aa99c183c55"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2PWcJZgt0cb-wByqswpN-o8xKRGkTwg8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
