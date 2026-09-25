@@ -1,4 +1,4 @@
-export type PermissionKind = "camera" | "location" | "notifications" | "microphone";
+export type PermissionKind = "location" | "notifications" | "microphone";
 
 export const PERMISSION_TEXT: Record<PermissionKind, { title: string; body: string }> = {
   location: { title: "Allow location?", body: "Location access helps us provide nearby products, delivery and location-based services." },
