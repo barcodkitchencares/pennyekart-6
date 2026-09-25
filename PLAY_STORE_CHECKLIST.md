@@ -1,8 +1,9 @@
 # Pennyekart – Google Play Store Checklist
 
-## Pending from the Pennyekart team (do not invent)
-- [ ] Privacy contact email — PENDING (set `privacyEmail` in `src/lib/legal.ts`)
-- [ ] Business address — PENDING (set `businessAddress` in `src/lib/legal.ts`)
+## Pennyekart contact details
+- [x] Privacy contact email — pennyekart@gmail.com
+- [x] Business address — Pennyekart, 1st Floor, Opposite Biotech Lab, Pookottumpadam
+- [x] Contact phone — 9497589094
 
 ## URLs to enter in Play Console
 - Privacy policy: https://www.pennyekart.com/privacy-policy
