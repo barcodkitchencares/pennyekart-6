@@ -11,6 +11,7 @@ export const ContactBlock = () => (
     ) : (
       <p>Privacy contact email: to be published.</p>
     )}
+    <p>Phone: <a className="underline" href={`tel:${LEGAL.phone}`}>{LEGAL.phone}</a></p>
     {LEGAL.businessAddress && <p>Address: {LEGAL.businessAddress}</p>}
     <p>Website: <a className="underline" href={LEGAL.website}>{LEGAL.website}</a></p>
   </div>

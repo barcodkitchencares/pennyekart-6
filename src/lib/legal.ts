@@ -1,8 +1,8 @@
-// Real contact details must be filled in by the Pennyekart team before Play Store submission.
 export const LEGAL = {
   brand: "Pennyekart",
   website: "https://www.pennyekart.com",
-  privacyEmail: "", // e.g. privacy@pennyekart.com — pending from Pennyekart team
-  businessAddress: "", // pending from Pennyekart team
+  privacyEmail: "pennyekart@gmail.com",
+  phone: "9497589094",
+  businessAddress: "Pennyekart, 1st Floor, Opposite Biotech Lab, Pookottumpadam",
   lastUpdated: "24 September 2026",
 };
