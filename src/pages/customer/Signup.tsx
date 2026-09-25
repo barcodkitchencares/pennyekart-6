@@ -21,7 +21,6 @@ interface LocalBody {
   ward_count: number;
 }
 
-const CUSTOMER_PASSWORD = "pennyekart_customer_2024";
 
 const CustomerSignup = () => {
   const location = useLocation();
@@ -99,29 +98,25 @@ const CustomerSignup = () => {
     setLoading(true);
 
     try {
-      const email = `${mobile}@pennyekart.in`;
-      const { error } = await supabase.auth.signUp({
-        email,
-        password: CUSTOMER_PASSWORD,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            mobile_number: mobile,
-            user_type: "customer",
-            local_body_id: localBodyId,
-            ward_number: parseInt(wardNumber),
-            referral_code: referralCode || undefined,
-          },
+      const { data, error } = await supabase.functions.invoke("customer-auth", {
+        body: {
+          action: "signup",
+          mobile,
+          full_name: fullName.trim(),
+          local_body_id: localBodyId,
+          ward_number: parseInt(wardNumber),
+          referral_code: referralCode || undefined,
         },
       });
 
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast({ title: "Mobile number already registered", description: "Please login instead.", variant: "destructive" });
-        } else {
-          toast({ title: "Signup failed", description: error.message, variant: "destructive" });
-        }
+      if (data?.status === "already_registered") {
+        toast({ title: "Mobile number already registered", description: "Please login instead.", variant: "destructive" });
+      } else if (error || data?.status !== "ok") {
+        let msg = data?.error;
+        try { msg = msg || (await (error as any)?.context?.json())?.error; } catch { /* ignore */ }
+        toast({ title: "Signup failed", description: msg || "Please try again.", variant: "destructive" });
       } else {
+        await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
         toast({ title: "Registration successful!", description: "You can now start shopping." });
         navigate("/", { state: { showSignupReward: true } });
       }

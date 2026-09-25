@@ -11,7 +11,6 @@ import { useLiteMode } from "@/hooks/useLiteMode";
 import { Zap } from "lucide-react";
 import logo from "@/assets/logo.png";
 
-const CUSTOMER_PASSWORD = "pennyekart_customer_2024";
 
 const CustomerLogin = () => {
   const [mobile, setMobile] = useState("");
@@ -39,19 +38,23 @@ const CustomerLogin = () => {
     }, 15000);
 
     try {
-      const email = `${mobile}@pennyekart.in`;
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password: CUSTOMER_PASSWORD });
-
+      const { data, error } = await supabase.functions.invoke("customer-auth", { body: { action: "login", mobile } });
       clearTimeout(timeoutRef.current);
 
-      if (error) {
+      if (data?.status === "not_registered") {
         setLoading(false);
-        toast({ title: "Not registered", description: "Redirecting to sign up...", variant: "default" });
+        toast({ title: "Not registered", description: "Redirecting to sign up..." });
         setTimeout(() => navigate("/customer/signup", { state: { mobile } }), 800);
         return;
       }
-
-      // Navigate immediately, profile check happens in background via AuthProvider
+      if (error || data?.status !== "ok") {
+        setLoading(false);
+        let msg = data?.error;
+        try { msg = msg || (await (error as any)?.context?.json())?.error; } catch { /* ignore */ }
+        toast({ title: "Login failed", description: msg || "Please try again.", variant: "destructive" });
+        return;
+      }
+      await supabase.auth.setSession({ access_token: data.access_token, refresh_token: data.refresh_token });
       setLoading(false);
       navigate("/");
     } catch (err) {
