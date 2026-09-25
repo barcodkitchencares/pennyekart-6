@@ -1655,6 +1655,7 @@ export type Database = {
           local_body_id: string | null
           longitude: number | null
           mobile_number: string | null
+          password_status: string
           referral_code: string | null
           referred_by: string | null
           role_id: string | null
@@ -1697,6 +1698,7 @@ export type Database = {
           local_body_id?: string | null
           longitude?: number | null
           mobile_number?: string | null
+          password_status?: string
           referral_code?: string | null
           referred_by?: string | null
           role_id?: string | null
@@ -1739,6 +1741,7 @@ export type Database = {
           local_body_id?: string | null
           longitude?: number | null
           mobile_number?: string | null
+          password_status?: string
           referral_code?: string | null
           referred_by?: string | null
           role_id?: string | null
@@ -2657,8 +2660,13 @@ export type Database = {
     }
     Functions: {
       am_i_verified: { Args: never; Returns: boolean }
+      anonymize_user_data: { Args: { _uid: string }; Returns: undefined }
       cancel_community_invite: {
         Args: { _invite_id: string }
+        Returns: boolean
+      }
+      confirm_account_verification: {
+        Args: { _code: string }
         Returns: boolean
       }
       create_community: { Args: { _name: string }; Returns: string }
@@ -2790,6 +2798,7 @@ export type Database = {
         Args: { _accept: boolean; _invite_id: string }
         Returns: boolean
       }
+      start_account_verification: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
