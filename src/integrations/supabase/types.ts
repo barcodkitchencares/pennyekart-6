@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          email: string | null
+          full_name: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          mobile: string
+          reason: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          full_name: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          mobile: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          mobile?: string
+          reason?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           created_at: string
@@ -2585,6 +2627,30 @@ export type Database = {
           },
         ]
       }
+      verification_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -2596,6 +2662,7 @@ export type Database = {
         Returns: boolean
       }
       create_community: { Args: { _name: string }; Returns: string }
+      delete_account_data: { Args: { _uid: string }; Returns: Json }
       delete_my_community: { Args: never; Returns: boolean }
       get_community_member_revenue: {
         Args: { _community_id: string; _from?: string; _to?: string }
