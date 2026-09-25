@@ -1,7 +1,25 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { adminClient, corsHeaders, getUserId, json } from "../_shared/auth.ts";
+import { adminClient, corsHeaders, json } from "../_shared/auth.ts";
 
+// Customer sign-in is mobile-number only (business requirement: no password, no OTP).
+// The session is minted here on the server; no shared password exists in the app.
 const norm = (v: unknown) => String(v ?? "").replace(/\D/g, "").slice(-10);
+const randomPassword = () => {
+  const b = new Uint8Array(32);
+  crypto.getRandomValues(b);
+  return Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
+};
+const uuidRe = /^[0-9a-f-]{36}$/i;
+
+// Best-effort throttle per instance (limits rapid number guessing).
+const hits = new Map<string, number[]>();
+const throttled = (key: string, max = 10, windowMs = 60_000) => {
+  const now = Date.now();
+  const list = (hits.get(key) ?? []).filter((t) => now - t < windowMs);
+  list.push(now);
+  hits.set(key, list);
+  return list.length > max;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -9,42 +27,77 @@ Deno.serve(async (req) => {
 
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* empty */ }
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (throttled(ip)) return json({ error: "Too many attempts. Please wait a minute." }, 429);
+
   const admin = adminClient();
+  const mobile = norm(body.mobile);
+  if (mobile.length !== 10) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
+  const email = `${mobile}@pennyekart.in`;
 
-  // TEMPORARY migration path: accounts created with the old shared password.
-  // The old password lives only on the server and is used only for accounts still marked "legacy".
-  if (body.action === "legacy_login") {
-    const mobile = norm(body.mobile);
-    if (mobile.length !== 10) return json({ error: "Enter a valid 10-digit mobile number" }, 400);
-    const email = `${mobile}@pennyekart.in`;
-
-    const { data: p } = await admin.from("profiles")
-      .select("password_status, user_type").eq("email", email).maybeSingle();
-    if (!p) return json({ status: "not_registered" });
-    if (p.user_type !== "customer" || p.password_status !== "legacy") return json({ status: "password_required" });
-
-    const legacy = Deno.env.get("LEGACY_CUSTOMER_PASSWORD");
-    if (!legacy) return json({ error: "Login temporarily unavailable" }, 500);
+  const mintSession = async () => {
+    const { data: link, error } = await admin.auth.admin.generateLink({ type: "magiclink", email });
+    if (error || !link?.properties?.hashed_token) return null;
     const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { auth: { persistSession: false } });
-    const { data, error } = await anon.auth.signInWithPassword({ email, password: legacy });
-    if (error || !data.session) return json({ status: "password_required" });
-    return json({ status: "ok", access_token: data.session.access_token, refresh_token: data.session.refresh_token });
+    const { data, error: vErr } = await anon.auth.verifyOtp({ type: "magiclink", token_hash: link.properties.hashed_token });
+    if (vErr || !data.session) return null;
+    return { access_token: data.session.access_token, refresh_token: data.session.refresh_token };
+  };
+
+  if (body.action === "login") {
+    const { data: p } = await admin.from("profiles")
+      .select("user_id, user_type, is_super_admin, is_blocked, password_status")
+      .eq("email", email).maybeSingle();
+    if (!p) return json({ status: "not_registered" });
+    // Only plain customer accounts can use mobile-only sign-in.
+    if (p.user_type !== "customer" || p.is_super_admin) return json({ error: "Please use the partner or admin login for this account" }, 403);
+    if (p.is_blocked) return json({ error: "This account is blocked. Please contact support." }, 403);
+
+    // Retire the old shared password for this account (no action needed from the customer).
+    if (p.password_status === "legacy") {
+      const { error } = await admin.auth.admin.updateUserById(p.user_id, { password: randomPassword() });
+      if (!error) await admin.from("profiles").update({ password_status: "server_managed" }).eq("user_id", p.user_id);
+    }
+    const session = await mintSession();
+    if (!session) return json({ error: "Login temporarily unavailable. Please try again." }, 500);
+    return json({ status: "ok", ...session });
   }
 
-  // Signed-in user sets their own password → account becomes "migrated"
-  if (body.action === "set_password") {
-    const uid = await getUserId(req);
-    if (!uid) return json({ error: "Please sign in again" }, 401);
-    const password = String(body.password ?? "");
-    if (password.length < 8 || password.length > 72) return json({ error: "Password must be 8–72 characters" }, 400);
-    if (password === Deno.env.get("LEGACY_CUSTOMER_PASSWORD")) return json({ error: "Choose a different password" }, 400);
-    const { data: p } = await admin.from("profiles").select("mobile_number").eq("user_id", uid).maybeSingle();
-    if (p?.mobile_number && norm(p.mobile_number) === norm(password)) return json({ error: "Do not use your mobile number as password" }, 400);
+  if (body.action === "signup") {
+    const fullName = String(body.full_name ?? "").trim();
+    const localBodyId = String(body.local_body_id ?? "");
+    const ward = Number(body.ward_number);
+    const referral = String(body.referral_code ?? "").trim().slice(0, 32);
+    if (fullName.length < 1 || fullName.length > 100) return json({ error: "Enter your name" }, 400);
+    if (!uuidRe.test(localBodyId) || !Number.isInteger(ward) || ward < 1 || ward > 200) return json({ error: "Select your panchayath and ward" }, 400);
 
-    const { error } = await admin.auth.admin.updateUserById(uid, { password });
-    if (error) return json({ error: "Could not update password" }, 500);
-    await admin.from("profiles").update({ password_status: "migrated" }).eq("user_id", uid);
-    return json({ ok: true });
+    const { data: lb } = await admin.from("locations_local_bodies").select("ward_count").eq("id", localBodyId).eq("is_active", true).maybeSingle();
+    if (!lb || ward > lb.ward_count) return json({ error: "Select a valid panchayath and ward" }, 400);
+
+    const { data: existing } = await admin.from("profiles").select("id").eq("email", email).maybeSingle();
+    if (existing) return json({ status: "already_registered" });
+
+    const { error } = await admin.auth.admin.createUser({
+      email,
+      password: randomPassword(),
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        mobile_number: mobile,
+        user_type: "customer", // always forced on the server
+        local_body_id: localBodyId,
+        ward_number: ward,
+        referral_code: referral || undefined,
+      },
+    });
+    if (error) {
+      if (/already/i.test(error.message)) return json({ status: "already_registered" });
+      return json({ error: "Signup failed. Please try again." }, 500);
+    }
+    await admin.from("profiles").update({ password_status: "server_managed" }).eq("email", email);
+    const session = await mintSession();
+    if (!session) return json({ error: "Account created. Please log in." }, 500);
+    return json({ status: "ok", ...session });
   }
 
   return json({ error: "Invalid action" }, 400);
