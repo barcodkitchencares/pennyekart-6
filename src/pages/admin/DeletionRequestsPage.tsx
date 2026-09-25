@@ -14,7 +14,7 @@ type Req = {
   id: string; full_name: string; mobile: string; email: string | null; reason: string | null;
   status: string; admin_notes: string | null; handled_at: string | null; created_at: string;
 };
-const STATUSES = ["pending", "in_progress", "completed", "rejected"];
+const STATUSES = ["pending", "processing", "completed", "rejected"];
 
 const DeletionRequestsPage = () => {
   const { user } = useAuth();
@@ -55,7 +55,7 @@ const DeletionRequestsPage = () => {
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All</SelectItem>
-            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}
+            {STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -73,7 +73,7 @@ const DeletionRequestsPage = () => {
                 <TableCell>{r.mobile}</TableCell>
                 <TableCell>{r.email ?? "—"}</TableCell>
                 <TableCell className="max-w-xs truncate">{r.reason ?? "—"}</TableCell>
-                <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status.replace("_", " ")}</Badge></TableCell>
+                <TableCell><Badge variant={r.status === "completed" ? "default" : "secondary"}>{r.status.replace(/_/g, " ")}</Badge></TableCell>
                 <TableCell><Button size="sm" variant="outline" onClick={() => { setEdit(r); setStatus(r.status); setNotes(r.admin_notes ?? ""); }}>Update</Button></TableCell>
               </TableRow>
             ))}
@@ -89,7 +89,7 @@ const DeletionRequestsPage = () => {
             {edit.reason && <p className="text-muted-foreground">{edit.reason}</p>}
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace("_", " ")}</SelectItem>)}</SelectContent>
+              <SelectContent>{STATUSES.map((s) => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
             </Select>
             <Textarea placeholder="Admin notes" value={notes} maxLength={1000} onChange={(e) => setNotes(e.target.value)} />
           </div>}
