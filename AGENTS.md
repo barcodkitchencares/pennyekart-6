@@ -12,3 +12,4 @@
 - Fetch delivery order customer contacts in cached batches through the assignment-checked delivery Edge Function; share the contact display across order lists and notifications to avoid exposing unrelated profiles.
 - Use NotificationDialogFrame for admin, seller, delivery, and utility booking alerts; default to blue and opt seller unfinished reminders into orange inside the portal so other roles and order actions stay unchanged.
 - Keep utility-service FCM delivery in an authenticated Edge Function that verifies request ownership, resolves the provider server-side, and deduplicates sends so customer clients cannot choose recipients.
+- Keep utility booking history reads scoped to the signed-in customer through the existing request ownership policies, so other customers' contact details remain private.

@@ -51,7 +51,9 @@ export const priceUnitLabel = (unit?: string | null) =>
   [...PRICE_UNITS, ...PRODUCT_UNITS].find((u) => u.value === unit)?.label ?? "Fixed price";
 
 export const statusLabel = (status?: string | null) =>
-  REQUEST_STATUSES.find((s) => s.value === status)?.label ?? status ?? "—";
+  status === "quoted"
+    ? "Quote provided"
+    : REQUEST_STATUSES.find((s) => s.value === status)?.label ?? status?.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) ?? "—";
 
 export const formatServicePrice = (price: number, unit?: string | null) => {
   if (unit === "quote" || !price) return "On request";
