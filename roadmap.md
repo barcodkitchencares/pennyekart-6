@@ -1,5 +1,10 @@
 # Roadmap
 
+## Utility booking availability and cancellation alerts
+- [ ] Require an availability estimate when a utility partner accepts a request; show it in customer booking history.
+- [ ] Allow customers to cancel pending/accepted bookings and immediately alert the assigned utility partner.
+- [ ] Verify estimate and cancellation behavior with focused tests and preview checks.
+
 ## Admin seller directory
 - [ ] Split the entry page into normal and utility seller cards, shorten lists with filters and pagination, and add matching utility partner detail tabs.
 - [ ] Verify directory navigation, filters, and partner detail views.
