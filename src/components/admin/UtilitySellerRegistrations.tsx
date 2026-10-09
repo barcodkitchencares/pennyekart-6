@@ -53,7 +53,7 @@ interface SellerArea {
   ward_number: number | null;
 }
 
-const UtilitySellerRegistrations = () => {
+const UtilitySellerRegistrations = ({ sellerUserId, onUpdated }: { sellerUserId?: string; onUpdated?: () => void } = {}) => {
   const { toast } = useToast();
   const { hasPermission } = usePermissions();
 
@@ -121,6 +121,7 @@ const UtilitySellerRegistrations = () => {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return sellers.filter((s) => {
+      if (sellerUserId && s.user_id !== sellerUserId) return false;
       if (q && ![s.full_name, s.mobile_number, s.email, s.company_name].some((v) => v?.toLowerCase().includes(q))) return false;
       const rows = areas.filter((a) => a.seller_user_id === s.user_id);
       if (filterBody !== "all") {
@@ -140,7 +141,7 @@ const UtilitySellerRegistrations = () => {
       if (filterStatus === "unassigned" && (s.local_body_id || rows.length > 0)) return false;
       return true;
     });
-  }, [sellers, areas, search, filterBody, filterWard, filterStatus]);
+  }, [sellers, areas, search, filterBody, filterWard, filterStatus, sellerUserId]);
 
   const filterWardOptions = useMemo(() => {
     const lb = localBodies.find((l) => l.id === filterBody);
@@ -244,12 +245,13 @@ const UtilitySellerRegistrations = () => {
     setTarget(null);
     toast({ title: "Areas allocated", description: `${rows.length} area(s) saved` });
     fetchAll();
+    onUpdated?.();
   };
 
   const toggleField = async (s: SellerProfile, field: "is_approved" | "is_blocked", value: boolean) => {
     const { error } = await supabase.from("profiles").update({ [field]: value }).eq("id", s.id);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
-    else fetchAll();
+    else { fetchAll(); onUpdated?.(); }
   };
 
   const canEdit = hasPermission("update_services");
@@ -257,7 +259,7 @@ const UtilitySellerRegistrations = () => {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      {!sellerUserId && <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input className="pl-8" placeholder="Search name, mobile, company" value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -286,7 +288,7 @@ const UtilitySellerRegistrations = () => {
             <SelectItem value="unassigned">No location</SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </div>}
 
       <div className="admin-table-wrap">
         <Table>
