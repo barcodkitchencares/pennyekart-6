@@ -1,5 +1,9 @@
 # Roadmap
 
+## Admin seller directory
+- [ ] Split the entry page into normal and utility seller cards, shorten lists with filters and pagination, and add matching utility partner detail tabs.
+- [ ] Verify directory navigation, filters, and partner detail views.
+
 ## Utility seller phone layout and reminder pause
 - [x] Match normal seller container, header, greeting, and launcher sizing; organize utility services, requests, and forms for phones. Sample screens checked at 360px, 390px, and desktop without horizontal overflow; build OK.
 - [x] Add a top reminder control that pauses in-app reminders for 12 hours, persists on reload, and resumes automatically. Three timing/persistence/resume tests and existing popup action test passed; sample switch/reload/resume checked. Firebase unchanged.

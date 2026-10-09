@@ -11,9 +11,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Search, Store, Phone, Mail, Package, Eye, MapPin, Wallet, User, Calendar, CheckCircle, Clock, Image as ImageIcon, Video, ShoppingBag } from "lucide-react";
+import SellerProfileDetails, { type SellerProfileDetailsData } from "@/components/admin/SellerProfileDetails";
+import UtilitySellerDetails from "@/components/admin/UtilitySellerDetails";
+import UtilitySellerRegistrations from "@/components/admin/UtilitySellerRegistrations";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, ArrowRight, Wrench, ChevronLeft, ChevronRight } from "lucide-react";
 import OrderDetailDialog from "@/components/OrderDetailDialog";
 
-interface SellingPartner {
+interface SellingPartner extends SellerProfileDetailsData {
+  seller_type: string | null;
+  is_blocked: boolean;
+  service_count?: number;
   id: string;
   user_id: string;
   full_name: string | null;
@@ -72,6 +80,13 @@ interface WalletInfo {
 const SellingPartnersPage = () => {
   const [partners, setPartners] = useState<SellingPartner[]>([]);
   const [search, setSearch] = useState("");
+  const [section, setSection] = useState<"normal" | "utility" | null>(null);
+  const [status, setStatus] = useState("all");
+  const [body, setBody] = useState("all");
+  const [ward, setWard] = useState("all");
+  const [page, setPage] = useState(1);
+  const [loadError, setLoadError] = useState(false);
+  const [coverage, setCoverage] = useState<{ seller_user_id: string; local_body_id: string; ward_number: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPartner, setSelectedPartner] = useState<SellingPartner | null>(null);
   const [partnerProducts, setPartnerProducts] = useState<SellerProduct[]>([]);
@@ -94,13 +109,19 @@ const SellingPartnersPage = () => {
 
   const fetchPartners = async () => {
     setLoading(true);
-    const [profilesRes, productsRes, localBodiesRes, districtsRes] = await Promise.all([
+    const [profilesRes, productsRes, localBodiesRes, districtsRes, servicesRes, areasRes] = await Promise.all([
       supabase.from("profiles").select("*").eq("user_type", "selling_partner"),
       supabase.from("seller_products").select("seller_id"),
       supabase.from("locations_local_bodies").select("id, name, body_type, district_id"),
       supabase.from("locations_districts").select("id, name"),
+      supabase.from("utility_services").select("provider_user_id"),
+      supabase.from("utility_seller_areas").select("seller_user_id, local_body_id, ward_number"),
     ]);
 
+    setLoadError(Boolean(profilesRes.error || productsRes.error || servicesRes.error || areasRes.error));
+    setCoverage(areasRes.data ?? []);
+    const serviceCounts: Record<string, number> = {};
+    (servicesRes.data ?? []).forEach(s => { if (s.provider_user_id) serviceCounts[s.provider_user_id] = (serviceCounts[s.provider_user_id] || 0) + 1; });
     const productCounts: Record<string, number> = {};
     (productsRes.data ?? []).forEach((p) => {
       productCounts[p.seller_id] = (productCounts[p.seller_id] || 0) + 1;
@@ -121,6 +142,7 @@ const SellingPartnersPage = () => {
       return {
         ...p,
         product_count: productCounts[p.user_id] || 0,
+        service_count: serviceCounts[p.user_id] || 0,
         local_body_name: lb?.name ?? null,
         body_type: lb?.body_type ?? null,
         district_name: lb ? districtsMap[lb.district_id] ?? null : null,
@@ -163,7 +185,7 @@ const SellingPartnersPage = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: !current ? "Product approved" : "Product unapproved" });
-      viewProducts(selectedPartner!);
+      if (selectedPartner) viewProducts(selectedPartner);
     }
   };
 
@@ -173,7 +195,7 @@ const SellingPartnersPage = () => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
       toast({ title: !current ? "Product featured" : "Product unfeatured" });
-      viewProducts(selectedPartner!);
+      if (selectedPartner) viewProducts(selectedPartner);
     }
   };
 
@@ -267,26 +289,48 @@ const SellingPartnersPage = () => {
     openWallet(walletPartner);
   };
 
-  const filtered = partners.filter((p) => {
-    if (!search) return true;
-    const q = search.toLowerCase();
-    return p.full_name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q) || p.mobile_number?.includes(q) || p.local_body_name?.toLowerCase().includes(q);
+  useEffect(() => { setPage(1); }, [search, section, status, body, ward]);
+  const sectionPartners = partners.filter(p => section === "utility" ? p.seller_type === "utility" : p.seller_type !== "utility");
+  const bodyOptions = Array.from(new Map(partners.filter(p => p.local_body_id).map(p => [p.local_body_id, p.local_body_name || "Unknown local body"])).entries());
+  const wardOptions = Array.from(new Set([...partners.filter(p => p.local_body_id === body).map(p => p.ward_number), ...coverage.filter(a => a.local_body_id === body).map(a => a.ward_number)].filter((w): w is number => w != null))).sort((a,b) => a-b);
+  const filtered = sectionPartners.filter(p => {
+    const q = search.trim().toLowerCase();
+    if (q && ![p.full_name, p.email, p.mobile_number, p.company_name, p.local_body_name].some(v => v?.toLowerCase().includes(q))) return false;
+    if (status === "approved" && (!p.is_approved || p.is_blocked)) return false;
+    if (status === "pending" && p.is_approved) return false;
+    if (status === "blocked" && !p.is_blocked) return false;
+    const areas = coverage.filter(a => a.seller_user_id === p.user_id);
+    if (body !== "all" && p.local_body_id !== body && !areas.some(a => a.local_body_id === body)) return false;
+    if (ward !== "all" && !(p.local_body_id === body && p.ward_number === Number(ward)) && !areas.some(a => a.local_body_id === body && (a.ward_number == null || a.ward_number === Number(ward)))) return false;
+    return true;
   });
-
-  const approvedCount = partners.filter((p) => p.is_approved).length;
-  const pendingCount = partners.filter((p) => !p.is_approved).length;
+  const pages = Math.max(1, Math.ceil(filtered.length / 10));
+  const currentPage = Math.min(page, pages);
+  const visiblePartners = filtered.slice((currentPage - 1) * 10, currentPage * 10);
+  const openDirectory = (kind: "normal" | "utility") => { setSection(kind); setSearch(""); setStatus("all"); setBody("all"); setWard("all"); setPage(1); };
+  const partnerActions = (p: SellingPartner) => <div className="flex flex-wrap gap-1">
+    <Button variant="outline" size="sm" onClick={() => setDetailPartner(p)}><User />Details</Button>
+    {p.seller_type !== "utility" && <>
+      <Button variant="ghost" size="icon" onClick={() => viewProducts(p)} title="Products" aria-label={`Products for ${p.full_name}`}><Package /></Button>
+      <Button variant="ghost" size="icon" onClick={() => openOrders(p)} title="Orders" aria-label={`Orders for ${p.full_name}`}><ShoppingBag /></Button>
+      <Button variant="ghost" size="icon" onClick={() => openGodownAssignment(p)} title="Assign godowns" aria-label={`Godowns for ${p.full_name}`}><MapPin /></Button>
+      <Button variant="ghost" size="icon" onClick={() => openWallet(p)} title="Wallet" aria-label={`Wallet for ${p.full_name}`}><Wallet /></Button>
+    </>}
+  </div>;
 
   const PartnerTable = ({ items, loading: isLoading }: { items: SellingPartner[]; loading: boolean }) => (
-    <div className="admin-table-wrap">
+    <>
+    <div className="space-y-3 md:hidden">{isLoading ? <p className="py-6 text-muted-foreground">Loading…</p> : items.length === 0 ? <p className="py-6 text-muted-foreground">No matching partners</p> : items.map(p => <article key={p.id} className="rounded-lg border bg-card p-4 space-y-3"><div className="flex justify-between gap-2"><div className="min-w-0"><h3 className="break-words font-semibold">{p.full_name || "Unnamed"}</h3><p className="break-words text-sm text-muted-foreground">{p.company_name}</p></div><Badge variant={p.is_blocked ? "destructive" : p.is_approved ? "default" : "secondary"}>{p.is_blocked ? "Blocked" : p.is_approved ? "Approved" : "Pending"}</Badge></div><p className="break-words text-sm">{p.mobile_number || p.email || "—"}</p><p className="text-sm text-muted-foreground">{p.local_body_name || "No local body"}{p.ward_number ? ` · Ward ${p.ward_number}` : ""} · {p.seller_type === "utility" ? `${p.service_count} services` : `${p.product_count} products`}</p>{partnerActions(p)}{p.seller_type !== "utility" && <label className="flex items-center gap-2 text-sm"><Switch aria-label={`Approve ${p.full_name}`} checked={p.is_approved} onCheckedChange={() => toggleApproval(p.user_id, p.is_approved)} />Approved</label>}</article>)}</div>
+    <div className="admin-table-wrap hidden md:block">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead>Panchayath / Ward</TableHead>
-            <TableHead>Products</TableHead>
+            <TableHead>{section === "utility" ? "Services" : "Products"}</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Approved</TableHead>
+            {section !== "utility" && <TableHead>Approved</TableHead>}
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -321,103 +365,55 @@ const SellingPartnersPage = () => {
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="outline" className="gap-1"><Package className="h-3 w-3" />{p.product_count}</Badge>
+                <Badge variant="outline" className="gap-1"><Package className="h-3 w-3" />{section === "utility" ? p.service_count : p.product_count}</Badge>
               </TableCell>
-              <TableCell><Badge variant={p.is_approved ? "default" : "secondary"}>{p.is_approved ? "Active" : "Pending"}</Badge></TableCell>
-              <TableCell><Switch checked={p.is_approved} onCheckedChange={() => toggleApproval(p.user_id, p.is_approved)} /></TableCell>
+              <TableCell><Badge variant={p.is_blocked ? "destructive" : p.is_approved ? "default" : "secondary"}>{p.is_blocked ? "Blocked" : p.is_approved ? "Approved" : "Pending"}</Badge></TableCell>
+              {section !== "utility" && <TableCell><Switch aria-label={`Approve ${p.full_name}`} checked={p.is_approved} onCheckedChange={() => toggleApproval(p.user_id, p.is_approved)} /></TableCell>}
               <TableCell>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={() => setDetailPartner(p)} title="View Details"><User className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => viewProducts(p)} title="Products"><Eye className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => openOrders(p)} title="Orders"><ShoppingBag className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => openGodownAssignment(p)} title="Assign Godowns"><MapPin className="h-4 w-4" /></Button>
-                  <Button variant="ghost" size="sm" onClick={() => openWallet(p)} title="Wallet"><Wallet className="h-4 w-4" /></Button>
-                </div>
+                {partnerActions(p)}
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </div>
+    </>
   );
 
   return (
     <AdminLayout>
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Store className="h-6 w-6 text-primary" /> Selling Partners Management
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">Manage partners, assign godowns, and settle payments</p>
-          </div>
-          <div className="flex gap-3">
-            <Badge variant="default" className="text-sm px-3 py-1">{approvedCount} Approved</Badge>
-            <Badge variant="secondary" className="text-sm px-3 py-1">{pendingCount} Pending</Badge>
-            <Badge variant="outline" className="text-sm px-3 py-1">{partners.length} Total</Badge>
-          </div>
+      <div className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><Store className="h-6 w-6 text-primary" />{section ? section === "utility" ? "Utility Sellers" : "Normal Sellers" : "Selling Partners"}</h1>
+          {section && <Button variant="outline" size="sm" onClick={() => setSection(null)}><ArrowLeft />Back to sellers</Button>}
         </div>
-
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search by name, email, phone, panchayath..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
-        </div>
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="pending" className="gap-2">
-              <Clock className="h-4 w-4" /> Pending
-              {pendingCount > 0 && <Badge variant="secondary" className="ml-1">{pendingCount}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="approved" className="gap-2">
-              <CheckCircle className="h-4 w-4" /> Approved
-              {approvedCount > 0 && <Badge variant="default" className="ml-1">{approvedCount}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="all" className="gap-2">
-              <Store className="h-4 w-4" /> All
-              <Badge variant="outline" className="ml-1">{filtered.length}</Badge>
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="pending"><PartnerTable items={filtered.filter(p => !p.is_approved)} loading={loading} /></TabsContent>
-          <TabsContent value="approved"><PartnerTable items={filtered.filter(p => p.is_approved)} loading={loading} /></TabsContent>
-          <TabsContent value="all"><PartnerTable items={filtered} loading={loading} /></TabsContent>
-        </Tabs>
+        {loadError && <div role="alert" className="flex items-center gap-3 text-sm text-destructive">Unable to load all partner details.<Button variant="outline" size="sm" onClick={fetchPartners}>Retry</Button></div>}
+        {!section ? <div className="grid gap-4 sm:grid-cols-2" aria-label="Seller types">{(["normal", "utility"] as const).map(kind => {
+          const list = partners.filter(p => kind === "utility" ? p.seller_type === "utility" : p.seller_type !== "utility");
+          const Icon = kind === "utility" ? Wrench : Store;
+          return <Button key={kind} variant="outline" onClick={() => openDirectory(kind)} className="h-auto min-h-[180px] items-start justify-start whitespace-normal p-6 text-left"><div className="w-full space-y-5"><div className="flex items-center justify-between"><Icon className="text-primary" /><ArrowRight className="text-muted-foreground" /></div><div><h2 className="text-lg font-semibold">{kind === "utility" ? "Utility Sellers" : "Normal Sellers"}</h2><p className="mt-1 text-3xl font-bold">{loading ? "…" : list.length}</p></div><div className="flex flex-wrap gap-2"><Badge variant="secondary">{list.filter(p => !p.is_approved).length} pending</Badge><Badge variant="outline">{list.filter(p => p.is_approved).length} approved</Badge></div></div></Button>;
+        })}</div> : <>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Search sellers" placeholder="Name, company, phone or email" value={search} onChange={e => setSearch(e.target.value)} className="pl-9" /></div>
+            <Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Seller status"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All statuses</SelectItem><SelectItem value="pending">Pending approval</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="blocked">Blocked</SelectItem></SelectContent></Select>
+            <Select value={body} onValueChange={v => { setBody(v); setWard("all"); }}><SelectTrigger aria-label="Local body"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All local bodies</SelectItem>{bodyOptions.map(([id,name]) => id && <SelectItem key={id} value={id}>{name}</SelectItem>)}</SelectContent></Select>
+            <Select value={ward} onValueChange={setWard} disabled={body === "all"}><SelectTrigger aria-label="Ward"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All wards</SelectItem>{wardOptions.map(w => <SelectItem key={w} value={String(w)}>Ward {w}</SelectItem>)}</SelectContent></Select>
+          </div>
+          <div className="flex justify-between items-center gap-2 text-sm"><span className="text-muted-foreground">{filtered.length} matching partners</span><Button size="sm" variant="ghost" onClick={() => { setSearch(""); setStatus("all"); setBody("all"); setWard("all"); }}>Clear filters</Button></div>
+          <PartnerTable items={visiblePartners} loading={loading} />
+          <div className="flex items-center justify-between gap-2 text-sm"><span className="text-muted-foreground">Page {currentPage} of {pages}</span><div className="flex gap-2"><Button variant="outline" size="icon" aria-label="Previous page" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft /></Button><Button variant="outline" size="icon" aria-label="Next page" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)}><ChevronRight /></Button></div></div>
+        </>}
       </div>
 
       {/* View Details Dialog */}
       <Dialog open={!!detailPartner} onOpenChange={() => setDetailPartner(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Partner Details</DialogTitle></DialogHeader>
-          {detailPartner && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                {detailPartner.avatar_url ? (
-                  <img src={detailPartner.avatar_url} alt="" className="h-16 w-16 rounded-full object-cover border" />
-                ) : (
-                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-                    <User className="h-8 w-8 text-muted-foreground" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-lg font-semibold">{detailPartner.full_name ?? "—"}</h3>
-                  <Badge variant={detailPartner.is_approved ? "default" : "secondary"}>
-                    {detailPartner.is_approved ? "Active" : "Pending"}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <DetailItem label="Email" value={detailPartner.email} />
-                <DetailItem label="Mobile" value={detailPartner.mobile_number} />
-                <DetailItem label="Date of Birth" value={detailPartner.date_of_birth ? new Date(detailPartner.date_of_birth).toLocaleDateString() : null} />
-                <DetailItem label="Joined" value={new Date(detailPartner.created_at).toLocaleDateString()} />
-                <DetailItem label="Local Body" value={detailPartner.local_body_name} />
-                <DetailItem label="Type" value={detailPartner.body_type} capitalize />
-                <DetailItem label="Ward" value={detailPartner.ward_number?.toString()} />
-                <DetailItem label="District" value={detailPartner.district_name} />
-                <DetailItem label="Products" value={detailPartner.product_count?.toString() ?? "0"} />
-              </div>
-            </div>
-          )}
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader><DialogTitle className="break-words">{detailPartner?.full_name || "Partner"} — Details</DialogTitle></DialogHeader>
+          {detailPartner && <Tabs defaultValue="details">
+            <TabsList className="max-w-full overflow-x-auto justify-start"><TabsTrigger value="details">Details</TabsTrigger>{detailPartner.seller_type === "utility" && <><TabsTrigger value="activity">Services & requests</TabsTrigger><TabsTrigger value="coverage">Areas & status</TabsTrigger></>}</TabsList>
+            <TabsContent value="details"><SellerProfileDetails partner={detailPartner} />{detailPartner.seller_type !== "utility" && <div className="mt-5 flex flex-wrap gap-2"><Button variant="outline" onClick={() => { setDetailPartner(null); viewProducts(detailPartner); }}><Package />Products</Button><Button variant="outline" onClick={() => { setDetailPartner(null); openOrders(detailPartner); }}><ShoppingBag />Orders</Button><Button variant="outline" onClick={() => { setDetailPartner(null); openGodownAssignment(detailPartner); }}><MapPin />Godowns</Button><Button variant="outline" onClick={() => { setDetailPartner(null); openWallet(detailPartner); }}><Wallet />Wallet</Button></div>}</TabsContent>
+            {detailPartner.seller_type === "utility" && <><TabsContent value="activity"><UtilitySellerDetails userId={detailPartner.user_id} /></TabsContent><TabsContent value="coverage"><UtilitySellerRegistrations sellerUserId={detailPartner.user_id} onUpdated={fetchPartners} /></TabsContent></>}
+          </Tabs>}
         </DialogContent>
       </Dialog>
 
@@ -692,7 +688,7 @@ const SellingPartnersPage = () => {
 const DetailItem = ({ label, value, capitalize }: { label: string; value?: string | null; capitalize?: boolean }) => (
   <div>
     <p className="text-muted-foreground text-xs">{label}</p>
-    <p className={`font-medium ${capitalize ? "capitalize" : ""}`}>{value ?? "—"}</p>
+    <p className={`break-words font-medium ${capitalize ? "capitalize" : ""}`}>{value ?? "—"}</p>
   </div>
 );
 
