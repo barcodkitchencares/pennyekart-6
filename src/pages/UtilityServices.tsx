@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart } from "lucide-react";
-import { formatServicePrice, type UtilityCategory, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
+import { ArrowLeft, Wrench, MapPin, Phone, Search, Building2, ChevronRight, Package, Minus, Plus, ShoppingCart, History, RefreshCw, CheckCircle2, Circle } from "lucide-react";
+import { formatServicePrice, statusLabel, type UtilityCategory, type UtilityRequest, type UtilityService, type UtilityVariant } from "@/lib/utilityServices";
 import AddressFormFields, {
   emptyAddressForm,
   formatAddressText,
@@ -47,6 +47,12 @@ interface ProviderInfo {
 }
 
 const DIRECT_KEY = "__direct__";
+const UTILITY_TRACKING_STEPS = [
+  { status: "pending", label: "Request received" },
+  { status: "assigned", label: "Accepted by supplier" },
+  { status: "in_progress", label: "In progress" },
+  { status: "completed", label: "Completed" },
+];
 
 const UtilityServices = () => {
   const [categories, setCategories] = useState<UtilityCategory[]>([]);
@@ -66,9 +72,72 @@ const UtilityServices = () => {
   const [variants, setVariants] = useState<UtilityVariant[]>([]);
   const [variantId, setVariantId] = useState<string | null>(null);
   const [qty, setQty] = useState(1);
+  const [historyMode, setHistoryMode] = useState(false);
+  const [requestHistory, setRequestHistory] = useState<UtilityRequest[]>([]);
+  const [historyServiceNames, setHistoryServiceNames] = useState<Record<string, string>>({});
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [trackingRequestId, setTrackingRequestId] = useState<string | null>(null);
   const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const loadRequestHistory = useCallback(async () => {
+    if (!user) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    const { data, error } = await supabase
+      .from("utility_service_requests")
+      .select("*")
+      .eq("customer_user_id", user.id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      setHistoryError("Your bookings could not be loaded. Please try again.");
+      setHistoryLoading(false);
+      return;
+    }
+
+    const requests = (data as UtilityRequest[]) ?? [];
+    setRequestHistory(requests);
+    const serviceIds = [...new Set(requests.map((request) => request.service_id))];
+    if (serviceIds.length > 0) {
+      const { data: servicesData } = await supabase
+        .from("utility_services")
+        .select("id, name")
+        .in("id", serviceIds);
+      setHistoryServiceNames(Object.fromEntries(
+        ((servicesData as { id: string; name: string }[]) ?? []).map((service) => [service.id, service.name])
+      ));
+    } else {
+      setHistoryServiceNames({});
+    }
+    setHistoryLoading(false);
+  }, [user]);
+
+  useEffect(() => {
+    if (!historyMode || !user) return;
+    void loadRequestHistory();
+    const channel = supabase
+      .channel(`customer-utility-history-${user.id}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "utility_service_requests",
+        filter: `customer_user_id=eq.${user.id}`,
+      }, () => { void loadRequestHistory(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [historyMode, user, loadRequestHistory]);
+
+  const openRequestHistory = () => {
+    if (!user) {
+      toast({ title: "Please log in", description: "Log in to view your utility bookings." });
+      navigate("/customer/login");
+      return;
+    }
+    setTrackingRequestId(null);
+    setHistoryMode(true);
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -342,7 +411,7 @@ const UtilityServices = () => {
     <div className="min-h-screen bg-background pb-20">
       <header className="sticky top-0 z-40 border-b bg-primary">
         <div className="container flex items-center gap-3 py-3">
-          <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" onClick={goBack}>
+          <Button variant="ghost" size="sm" className="text-primary-foreground hover:bg-primary-foreground/10" onClick={() => historyMode ? setHistoryMode(false) : goBack()}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex min-w-0 items-center gap-2">
@@ -351,11 +420,20 @@ const UtilityServices = () => {
               {selectedSupplier ? selectedSupplier.name : activeCat ? activeCat.name : "Utility Services"}
             </h1>
           </div>
+          {historyMode ? (
+            <Button variant="ghost" size="sm" className="ml-auto text-primary-foreground hover:bg-primary-foreground/10" onClick={() => setHistoryMode(false)}>
+              Browse services
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" className="ml-auto gap-1.5 text-primary-foreground hover:bg-primary-foreground/10" onClick={openRequestHistory}>
+              <History className="h-4 w-4" /> My bookings
+            </Button>
+          )}
         </div>
       </header>
 
       <main className="container py-5">
-        {!activeCat && !selectedSupplier && (
+        {!historyMode && !activeCat && !selectedSupplier && (
           <Card className="mb-4 border-primary/30 bg-primary/5">
             <CardContent className="flex items-center justify-between gap-3 p-4">
               <div className="min-w-0">
@@ -366,7 +444,7 @@ const UtilityServices = () => {
             </CardContent>
           </Card>
         )}
-        {(activeCat || selectedSupplier) && (
+        {!historyMode && (activeCat || selectedSupplier) && (
           <div className="mb-3 flex items-center gap-1 text-sm text-muted-foreground">
             <button className="hover:text-foreground" onClick={() => { setActiveCat(null); setActiveProvider(null); }}>Categories</button>
             {activeCat && (
@@ -384,7 +462,7 @@ const UtilityServices = () => {
           </div>
         )}
 
-        <div className="relative mb-4">
+        {!historyMode && <div className="relative mb-4">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             className="pl-9"
@@ -392,9 +470,108 @@ const UtilityServices = () => {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-        </div>
+        </div>}
 
-        {loading ? (
+        {historyMode ? (
+          <section className="space-y-4" aria-labelledby="booking-history-title">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 id="booking-history-title" className="text-xl font-semibold">My bookings</h2>
+                <p className="text-sm text-muted-foreground">View your utility orders and service request updates.</p>
+              </div>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => void loadRequestHistory()} disabled={historyLoading} aria-label="Refresh bookings">
+                <RefreshCw className={`h-4 w-4 ${historyLoading ? "animate-spin" : ""}`} /> Refresh
+              </Button>
+            </div>
+            {historyError ? (
+              <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+                <p>{historyError}</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => void loadRequestHistory()}>Try again</Button>
+              </div>
+            ) : historyLoading && requestHistory.length === 0 ? (
+              <p className="py-10 text-center text-sm text-muted-foreground">Loading your bookings…</p>
+            ) : requestHistory.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 border-y py-12 text-center">
+                <Package className="h-10 w-10 text-muted-foreground" />
+                <div>
+                  <h3 className="font-semibold">No bookings yet</h3>
+                  <p className="text-sm text-muted-foreground">Your utility orders and service requests will appear here.</p>
+                </div>
+                <Button variant="outline" onClick={() => setHistoryMode(false)}>Browse services</Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {requestHistory.map((request) => {
+                  const currentStep = request.status === "quoted"
+                    ? 0
+                    : UTILITY_TRACKING_STEPS.findIndex((step) => step.status === request.status);
+                  const cancelled = request.status === "cancelled";
+                  const expanded = trackingRequestId === request.id;
+                  return (
+                    <Card key={request.id} className="overflow-hidden">
+                      <CardContent className="space-y-3 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <p className="font-mono text-xs text-muted-foreground">Booking #{request.id.slice(0, 8)}</p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                              {new Date(request.created_at).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}
+                            </p>
+                          </div>
+                          <Badge variant={request.status === "completed" ? "default" : cancelled ? "destructive" : "secondary"}>
+                            {statusLabel(request.status)}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-start justify-between gap-2 border-t pt-3">
+                          <div className="min-w-0">
+                            <p className="break-words font-semibold">{historyServiceNames[request.service_id] ?? "Utility service"}</p>
+                            {(request.variant_label || request.quantity) && (
+                              <p className="mt-1 text-sm text-muted-foreground">
+                                {[request.variant_label, `Qty: ${request.quantity ?? 1}`].filter(Boolean).join(" · ")}
+                              </p>
+                            )}
+                          </div>
+                          {(request.total_amount != null || request.quoted_amount != null) && (
+                            <p className="shrink-0 font-semibold">₹{Number(request.quoted_amount ?? request.total_amount).toLocaleString("en-IN")}</p>
+                          )}
+                        </div>
+                        <Button variant="outline" size="sm" className="gap-2" onClick={() => setTrackingRequestId(expanded ? null : request.id)}>
+                          <History className="h-4 w-4" />{expanded ? "Hide status" : "Track status"}
+                        </Button>
+                        {expanded && (
+                          <div className="space-y-3 border-t pt-3" aria-label={`Status tracking for booking ${request.id.slice(0, 8)}`}>
+                            {cancelled ? (
+                              <p className="text-sm font-medium text-destructive">This booking was cancelled.</p>
+                            ) : (
+                              <>
+                                {request.status === "quoted" && (
+                                  <p className="rounded-md border bg-muted/40 p-3 text-sm">The supplier provided a quote. Contact them if you need to discuss it.</p>
+                                )}
+                                <ol className="space-y-3">
+                                  {UTILITY_TRACKING_STEPS.map((step, index) => {
+                                    const complete = currentStep >= index;
+                                    const current = currentStep === index;
+                                    return (
+                                      <li key={step.status} className="flex items-start gap-3">
+                                        {complete ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-primary" /> : <Circle className="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground/40" />}
+                                        <span className={`text-sm ${complete ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                                          {step.label}{current && <span className="ml-2 text-xs text-primary">Current status</span>}
+                                        </span>
+                                      </li>
+                                    );
+                                  })}
+                                </ol>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        ) : loading ? (
           <p className="text-center text-muted-foreground">Loading services...</p>
         ) : !activeCat ? (
           filteredCategories.length === 0 ? (
