@@ -12,12 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/hooks/useAuth";
-import { Plus, Pencil, Trash2, ExternalLink, Clock, Store, CheckCircle, XCircle, Percent, Calculator, Star, Search, Eye } from "lucide-react";
+import { Plus, Pencil, Trash2, ExternalLink, Clock, Store, CheckCircle, XCircle, Percent, Calculator, Star, Search, Eye, ChevronLeft, ChevronRight } from "lucide-react";
 import ImageUpload from "@/components/admin/ImageUpload";
 import ProductVariants from "@/components/admin/ProductVariants";
 import MicroGodownAssignDialog from "@/components/admin/MicroGodownAssignDialog";
 import { Warehouse } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getSellerProductPage, type SellerProductApprovalFilter } from "@/lib/sellerProductList";
 
 interface Product {
   id: string; name: string; description: string | null; price: number;
@@ -83,6 +84,9 @@ const ProductsPage = () => {
   const [ownSearch, setOwnSearch] = useState("");
   const [sellerSearch, setSellerSearch] = useState("");
   const [sellerFilter, setSellerFilter] = useState("");
+  const [sellerApprovalFilter, setSellerApprovalFilter] = useState<SellerProductApprovalFilter>("all");
+  const [sellerPage, setSellerPage] = useState(1);
+  const [sellerPageSize, setSellerPageSize] = useState(20);
   const [sellerGroceryFilter, setSellerGroceryFilter] = useState<"all" | "grocery" | "non_grocery" | "unassigned_grocery">("all");
   const [microGodownCounts, setMicroGodownCounts] = useState<Record<string, number>>({});
   const [microGodownTotal, setMicroGodownTotal] = useState(0);
@@ -658,17 +662,22 @@ const ProductsPage = () => {
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search seller products..." value={sellerSearch} onChange={(e) => setSellerSearch(e.target.value)} className="pl-9 w-full sm:w-48 h-9" />
+                <Input placeholder="Search seller products..." value={sellerSearch} onChange={(e) => { setSellerSearch(e.target.value); setSellerPage(1); }} className="pl-9 w-full sm:w-48 h-9" />
               </div>
-              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerCategoryFilter} onChange={(e) => setSellerCategoryFilter(e.target.value)}>
+              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerCategoryFilter} onChange={(e) => { setSellerCategoryFilter(e.target.value); setSellerPage(1); }}>
                 <option value="">All Categories</option>
                 {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
               </select>
-              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerFilter} onChange={(e) => setSellerFilter(e.target.value)}>
+              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerFilter} onChange={(e) => { setSellerFilter(e.target.value); setSellerPage(1); }}>
                 <option value="">All Sellers</option>
                 {sellerProfiles.map(s => <option key={s.user_id} value={s.user_id}>{s.company_name || s.full_name || s.user_id.slice(0, 8)}</option>)}
               </select>
-              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerGroceryFilter} onChange={(e) => setSellerGroceryFilter(e.target.value as any)}>
+              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerApprovalFilter} onChange={(e) => { setSellerApprovalFilter(e.target.value as SellerProductApprovalFilter); setSellerPage(1); }} aria-label="Filter by approval status">
+                <option value="all">All approval statuses</option>
+                <option value="pending">Pending approval</option>
+                <option value="approved">Approved</option>
+              </select>
+              <select className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm" value={sellerGroceryFilter} onChange={(e) => { setSellerGroceryFilter(e.target.value as typeof sellerGroceryFilter); setSellerPage(1); }}>
                 <option value="all">All Products</option>
                 <option value="grocery">Grocery only</option>
                 <option value="non_grocery">Non-grocery</option>
@@ -685,23 +694,18 @@ const ProductsPage = () => {
             const isUnassignedGrocery = (p: SellerProduct) =>
               !!p.is_grocery && !p.assign_to_all_micro_godowns && (microGodownCounts[p.id] ?? 0) === 0;
 
-            const filterFn = (p: SellerProduct) => {
-              if (sellerCategoryFilter && p.category !== sellerCategoryFilter) return false;
-              if (sellerFilter && p.seller_id !== sellerFilter) return false;
-              if (sellerSearch && !p.name.toLowerCase().includes(sellerSearch.toLowerCase())) return false;
-              if (sellerGroceryFilter === "grocery" && !p.is_grocery) return false;
-              if (sellerGroceryFilter === "non_grocery" && p.is_grocery) return false;
-              if (sellerGroceryFilter === "unassigned_grocery") {
-                if (!isUnassignedGrocery(p)) return false;
-              }
-              return true;
-            };
-            const filtered = sellerProducts.filter(filterFn).sort((a, b) => {
-              // Auto-sort unassigned grocery rows to the top
-              const aU = isUnassignedGrocery(a) ? 0 : 1;
-              const bU = isUnassignedGrocery(b) ? 0 : 1;
-              return aU - bU;
+            const sellerPageData = getSellerProductPage(sellerProducts, {
+              search: sellerSearch,
+              category: sellerCategoryFilter,
+              sellerId: sellerFilter,
+              approval: sellerApprovalFilter,
+              grocery: sellerGroceryFilter,
+              page: sellerPage,
+              pageSize: sellerPageSize,
+              isUnassignedGrocery,
             });
+            const filtered = sellerPageData.filtered;
+            const pageItems = sellerPageData.pageItems;
 
             const unassignedTotalCount = sellerProducts.filter(isUnassignedGrocery).length;
 
@@ -740,7 +744,7 @@ const ProductsPage = () => {
                 )}
                 {/* Mobile card view */}
                 <div className="block md:hidden space-y-3">
-                  {filtered.map((p) => (
+                  {pageItems.map((p) => (
                     <div key={p.id} className={`rounded-lg border p-3 space-y-2 ${isUnassignedGrocery(p) ? "bg-yellow-50 dark:bg-yellow-900/20 border-yellow-400/60" : "bg-card"}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
@@ -798,8 +802,8 @@ const ProductsPage = () => {
                         <TableHead className="w-32">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
-                    <TableBody>
-                      {filtered.map((p) => (
+                      <TableBody>
+                      {pageItems.map((p) => (
                         <TableRow key={p.id} className={isUnassignedGrocery(p) ? "bg-yellow-50 dark:bg-yellow-900/20" : undefined}>
                           <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell>{p.category ?? "—"}</TableCell>
@@ -846,6 +850,41 @@ const ProductsPage = () => {
                     </TableBody>
                   </Table>
                 </div>
+                {filtered.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {sellerPageData.startIndex + 1}–{sellerPageData.endIndex} of {filtered.length} products
+                    </p>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <Button variant="outline" size="sm" aria-label="Previous page" disabled={sellerPageData.page === 1} onClick={() => setSellerPage(sellerPageData.page - 1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      {Array.from({ length: Math.min(sellerPageData.pageCount, 5) }, (_, index) => {
+                        const page = sellerPageData.pageCount <= 5
+                          ? index + 1
+                          : sellerPageData.page <= 3
+                            ? index + 1
+                            : sellerPageData.page >= sellerPageData.pageCount - 2
+                              ? sellerPageData.pageCount - 4 + index
+                              : sellerPageData.page - 2 + index;
+                        return (
+                        <Button key={page} variant={sellerPageData.page === page ? "default" : "outline"} size="sm" className="h-8 w-8 p-0" onClick={() => setSellerPage(page)}>
+                          {page}
+                        </Button>
+                        );
+                      })}
+                      <Button variant="outline" size="sm" aria-label="Next page" disabled={sellerPageData.page === sellerPageData.pageCount} onClick={() => setSellerPage(sellerPageData.page + 1)}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      <label className="ml-2 flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>Rows</span>
+                        <select className="h-8 rounded-md border border-input bg-background px-2 text-sm text-foreground" value={sellerPageSize} onChange={(event) => { setSellerPageSize(Number(event.target.value)); setSellerPage(1); }} aria-label="Products per page">
+                          {[10, 20, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                )}
               </>
             );
           })()}
