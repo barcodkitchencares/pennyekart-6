@@ -694,17 +694,6 @@ const ProductsPage = () => {
             const isUnassignedGrocery = (p: SellerProduct) =>
               !!p.is_grocery && !p.assign_to_all_micro_godowns && (microGodownCounts[p.id] ?? 0) === 0;
 
-            const filterFn = (p: SellerProduct) => {
-              if (sellerCategoryFilter && p.category !== sellerCategoryFilter) return false;
-              if (sellerFilter && p.seller_id !== sellerFilter) return false;
-              if (sellerSearch && !p.name.toLowerCase().includes(sellerSearch.toLowerCase())) return false;
-              if (sellerGroceryFilter === "grocery" && !p.is_grocery) return false;
-              if (sellerGroceryFilter === "non_grocery" && p.is_grocery) return false;
-              if (sellerGroceryFilter === "unassigned_grocery") {
-                if (!isUnassignedGrocery(p)) return false;
-              }
-              return true;
-            };
             const sellerPageData = getSellerProductPage(sellerProducts, {
               search: sellerSearch,
               category: sellerCategoryFilter,
@@ -870,11 +859,20 @@ const ProductsPage = () => {
                       <Button variant="outline" size="sm" aria-label="Previous page" disabled={sellerPageData.page === 1} onClick={() => setSellerPage(sellerPageData.page - 1)}>
                         <ChevronLeft className="h-4 w-4" />
                       </Button>
-                      {Array.from({ length: sellerPageData.pageCount }, (_, index) => index + 1).map((page) => (
+                      {Array.from({ length: Math.min(sellerPageData.pageCount, 5) }, (_, index) => {
+                        const page = sellerPageData.pageCount <= 5
+                          ? index + 1
+                          : sellerPageData.page <= 3
+                            ? index + 1
+                            : sellerPageData.page >= sellerPageData.pageCount - 2
+                              ? sellerPageData.pageCount - 4 + index
+                              : sellerPageData.page - 2 + index;
+                        return (
                         <Button key={page} variant={sellerPageData.page === page ? "default" : "outline"} size="sm" className="h-8 w-8 p-0" onClick={() => setSellerPage(page)}>
                           {page}
                         </Button>
-                      ))}
+                        );
+                      })}
                       <Button variant="outline" size="sm" aria-label="Next page" disabled={sellerPageData.page === sellerPageData.pageCount} onClick={() => setSellerPage(sellerPageData.page + 1)}>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
