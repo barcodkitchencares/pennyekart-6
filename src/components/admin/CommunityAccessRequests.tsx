@@ -48,6 +48,7 @@ export default function CommunityAccessRequests() {
   const [failed, setFailed] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const [search, setSearch] = useState("");
+  const [panchayathFilter, setPanchayathFilter] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -91,8 +92,10 @@ export default function CommunityAccessRequests() {
     const matched = filter === "all" ? requests : requests.filter(r => r.status === filter);
     const query = search.trim().toLocaleLowerCase();
     return [...matched].filter(request => {
-      if (!query) return true;
       const applicant = people[request.user_id];
+      if (panchayathFilter === "not_set" && applicant?.local_body_id) return false;
+      if (panchayathFilter !== "all" && panchayathFilter !== "not_set" && applicant?.local_body_id !== panchayathFilter) return false;
+      if (!query) return true;
       const searchable = [
         request.community_name, request.reason, request.admin_notes,
         applicant?.full_name, applicant?.mobile_number,
@@ -105,7 +108,10 @@ export default function CommunityAccessRequests() {
       if (aPending !== bPending) return aPending - bPending;
       return b.created_at.localeCompare(a.created_at);
     });
-  }, [requests, filter, search, people, places]);
+  }, [requests, filter, search, panchayathFilter, people, places]);
+
+  const panchayathOptions = useMemo(() => Object.entries(places)
+    .sort(([, a], [, b]) => a.name.localeCompare(b.name) || (a.district || "").localeCompare(b.district || "")), [places]);
 
   const exportVisible = () => {
     const rows = visible.map(request => ({
@@ -154,9 +160,23 @@ export default function CommunityAccessRequests() {
           </Button>
         ))}
       </div>
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input aria-label="Search access requests" placeholder="Search applicant, community, area…" className="pl-9" value={search} onChange={event => setSearch(event.target.value)} />
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input aria-label="Search access requests" placeholder="Search applicant, community, area…" className="pl-9" value={search} onChange={event => setSearch(event.target.value)} />
+        </div>
+        <Select value={panchayathFilter} onValueChange={setPanchayathFilter}>
+          <SelectTrigger className="w-full sm:w-[240px]" aria-label="Filter by Panchayath">
+            <SelectValue placeholder="All Panchayaths" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Panchayaths</SelectItem>
+            <SelectItem value="not_set">Panchayath not set</SelectItem>
+            {panchayathOptions.map(([id, place]) => (
+              <SelectItem key={id} value={id}>{place.name}{place.district ? ` (${place.district})` : ""}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       {loading ? <p className="text-sm text-muted-foreground">Loading requests…</p>
         : failed ? <p className="text-sm text-destructive">Could not load requests. Please retry.</p>
